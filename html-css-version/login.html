@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MyPOS HTML and CSS Version - Login</title>
+    <link rel="stylesheet" href="css/base.css" />
+    <link rel="stylesheet" href="css/login.css" />
+  </head>
+  <body class="login-page">
+    <main class="login-shell">
+      <section class="login-card">
+        <div class="login-card__head">
+          <p class="eyebrow">POS Lokal</p>
+          <h1 class="card-title">MyPOS Sumber Kasih</h1>
+          <p class="card-subtitle">Pilih peran Anda untuk masuk</p>
+        </div>
+        <div class="form-stack">
+          <article class="role-card">
+            <h2 class="role-card__title">Karyawan</h2>
+            <p class="role-card__copy">Akses ke transaksi, refund, produk, dan laporan.</p>
+          </article>
+          <article class="role-card is-selected">
+            <h2 class="role-card__title">Pemilik</h2>
+            <p class="role-card__copy">Akses penuh ke semua fitur dan ringkasan operasional toko.</p>
+          </article>
+          <label class="field-group">
+            <span class="field-label">Nama (opsional)</span>
+            <input class="field" type="text" value="Pemilik" />
+          </label>
+          <a class="button button--primary button--full" href="transactions-customer-lookup.html">Masuk</a>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

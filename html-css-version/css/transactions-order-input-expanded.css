@@ -1,0 +1,3 @@
+.transactions-order-expanded-page .product-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}

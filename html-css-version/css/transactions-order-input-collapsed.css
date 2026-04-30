@@ -1,0 +1,3 @@
+.transactions-order-collapsed-page .product-grid--wide {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
