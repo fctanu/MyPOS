@@ -1,0 +1,5 @@
+2026/04/08-19:46:40.151 8464 Creating DB C:\Users\fctan\Desktop\projects\MyPOS\.edge-headless-landscape\products-categories\Default\EdgeCoupons/coupons_data.db since it was missing.
+2026/04/08-19:46:40.165 8464 Reusing MANIFEST C:\Users\fctan\Desktop\projects\MyPOS\.edge-headless-landscape\products-categories\Default\EdgeCoupons/coupons_data.db/MANIFEST-000001
+2026/04/08-19:46:40.776 f5c Level-0 table #5: started
+2026/04/08-19:46:40.782 f5c Level-0 table #5: 682116 bytes OK
+2026/04/08-19:46:40.786 f5c Delete type=0 #3
