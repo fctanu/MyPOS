@@ -1,4 +1,0 @@
-2026/04/08-19:46:51.706 77cc Creating DB C:\Users\fctan\Desktop\projects\MyPOS\.edge-headless-landscape\refunds-empty\Default\EdgeCoupons/coupons_data.db since it was missing.
-2026/04/08-19:46:51.717 77cc Reusing MANIFEST C:\Users\fctan\Desktop\projects\MyPOS\.edge-headless-landscape\refunds-empty\Default\EdgeCoupons/coupons_data.db/MANIFEST-000001
-2026/04/08-19:46:52.238 77dc Level-0 table #5: started
-2026/04/08-19:46:52.250 77dc Level-0 table #5: 682116 bytes OK
