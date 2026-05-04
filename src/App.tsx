@@ -1,42 +1,2673 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type DragEvent,
+  type ReactNode,
+} from "react";
+import {
+  BrowserRouter,
+  NavLink,
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
+import * as XLSX from "xlsx";
 
-import { useState } from 'react';
-import Layout from './components/Layout';
-import Dashboard from './views/Dashboard';
-import Inventory from './views/Inventory';
-import Suppliers from './views/Suppliers';
-import Customers from './views/Customers';
-import PurchaseOrders from './views/PurchaseOrders';
-import Transactions from './views/Transactions';
+type Role = "owner" | "employee";
+type PaymentMethod = "cash" | "transfer";
+type ProductTab = "import" | "categories" | "stock";
 
-export default function App() {
-  const [currentView, setCurrentView] = useState('dashboard');
+type Session = {
+  role: Role;
+  name: string;
+};
 
-  const renderView = () => {
-    switch (currentView) {
-      case 'dashboard': return <Dashboard />;
-      case 'inventory': return <Inventory />;
-      case 'suppliers': return <Suppliers />;
-      case 'customers': return <Customers />;
-      case 'purchase-orders': return <PurchaseOrders />;
-      case 'transactions': return <Transactions />;
-      default: return (
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-slate-700 mb-2">Coming Soon</h2>
-            <p className="text-slate-500">This view is under construction.</p>
-          </div>
-        </div>
+type Customer = {
+  id: string;
+  name: string;
+  phone?: string;
+  address?: string;
+  loyaltyPoints: number;
+};
+
+type Category = {
+  id: string;
+  name: string;
+  description: string;
+};
+
+type Product = {
+  id: string;
+  sku: string;
+  name: string;
+  categoryId: string;
+  netPrice?: number;
+  wholesalePrice?: number;
+  retailPrice: number;
+  stock: number;
+  lowStockThreshold: number;
+};
+
+type SaleItem = {
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+};
+
+type Sale = {
+  id: string;
+  receiptNumber: string;
+  customerId?: string;
+  customerName: string;
+  customerPhone?: string;
+  items: SaleItem[];
+  total: number;
+  paymentMethod: PaymentMethod;
+  createdAt: string;
+  pointsUsed: number;
+  pointsEarned: number;
+};
+
+type RefundRecord = {
+  id: string;
+  saleId: string;
+  saleReceiptNumber: string;
+  customerName: string;
+  reason: string;
+  total: number;
+  createdAt: string;
+};
+
+type ReportSnapshot = {
+  id: string;
+  createdAt: string;
+  periodStart: string;
+  periodEnd: string;
+  salesTotal: number;
+  refundTotal: number;
+  topProduct: string;
+};
+
+type AppContextValue = {
+  session: Session | null;
+  setSession: (session: Session | null) => void;
+  sidebarCollapsed: boolean;
+  setSidebarCollapsed: (value: boolean) => void;
+  customers: Customer[];
+  setCustomers: (updater: Customer[] | ((current: Customer[]) => Customer[])) => void;
+  categories: Category[];
+  setCategories: (updater: Category[] | ((current: Category[]) => Category[])) => void;
+  products: Product[];
+  setProducts: (updater: Product[] | ((current: Product[]) => Product[])) => void;
+  sales: Sale[];
+  setSales: (updater: Sale[] | ((current: Sale[]) => Sale[])) => void;
+  refunds: RefundRecord[];
+  setRefunds: (
+    updater: RefundRecord[] | ((current: RefundRecord[]) => RefundRecord[]),
+  ) => void;
+  reports: ReportSnapshot[];
+  setReports: (
+    updater: ReportSnapshot[] | ((current: ReportSnapshot[]) => ReportSnapshot[]),
+  ) => void;
+};
+
+const categoriesSeed: Category[] = [
+  { id: "mie", name: "MIE", description: "Instant noodles and dry noodle staples." },
+  {
+    id: "bumbu",
+    name: "BUMBU MASAKAN",
+    description: "Cooking essentials, seasonings, sauces, and oil.",
+  },
+  {
+    id: "minuman",
+    name: "SUSU & MINUMAN",
+    description: "Milk, canned drinks, and beverage staples.",
+  },
+  { id: "kopi", name: "KOPI & TEH", description: "Coffee, tea, and warm drinks." },
+  { id: "snack", name: "SNACK", description: "Biscuits, chips, wafers, and cashier snacks." },
+];
+
+const productsSeed: Product[] = [
+  {
+    id: "prd-1",
+    sku: "SEDAAP-MIE-GR-91GR-40",
+    name: "SEDAAP MIE GR 91GR (40)",
+    categoryId: "mie",
+    retailPrice: 3500,
+    stock: 128,
+    lowStockThreshold: 24,
+  },
+  {
+    id: "prd-2",
+    sku: "SEDAAP-MIE-KARI-SPESIAL",
+    name: "SEDAAP MIE KARI SPESIAL 75GR (40)",
+    categoryId: "mie",
+    retailPrice: 3250,
+    stock: 131,
+    lowStockThreshold: 24,
+  },
+  {
+    id: "prd-3",
+    sku: "SEDAAP-MIE-KOREAN-SPICY",
+    name: "SEDAAP MIE KOREAN SPICY 87GR (40)",
+    categoryId: "mie",
+    retailPrice: 3500,
+    stock: 109,
+    lowStockThreshold: 20,
+  },
+  {
+    id: "prd-4",
+    sku: "MIE-BAKSO-SUPER",
+    name: "MIE BAKSO SUPER",
+    categoryId: "mie",
+    retailPrice: 3600,
+    stock: 125,
+    lowStockThreshold: 18,
+  },
+  {
+    id: "prd-5",
+    sku: "MIE-INSTAN-INTERMI-40",
+    name: "MIE INSTAN INTERMI (40)",
+    categoryId: "mie",
+    retailPrice: 1500,
+    stock: 38,
+    lowStockThreshold: 15,
+  },
+  {
+    id: "prd-6",
+    sku: "MIE-KUDA-MENJANGAN",
+    name: "MIE KUDA MENJANGAN",
+    categoryId: "mie",
+    retailPrice: 41000,
+    stock: 93,
+    lowStockThreshold: 10,
+  },
+  {
+    id: "prd-7",
+    sku: "MIE-TELOR-3-AYAM",
+    name: "MIE TELOR 3 AYAM",
+    categoryId: "mie",
+    retailPrice: 6200,
+    stock: 62,
+    lowStockThreshold: 14,
+  },
+  {
+    id: "prd-8",
+    sku: "BIHUN-BERAS-350GR",
+    name: "BIHUN BERAS 350GR",
+    categoryId: "mie",
+    retailPrice: 9800,
+    stock: 58,
+    lowStockThreshold: 12,
+  },
+  {
+    id: "prd-9",
+    sku: "RIMBA",
+    name: "RIMBA",
+    categoryId: "bumbu",
+    retailPrice: 10000,
+    stock: 76,
+    lowStockThreshold: 16,
+  },
+  {
+    id: "prd-10",
+    sku: "TAWON",
+    name: "TAWON",
+    categoryId: "bumbu",
+    retailPrice: 15000,
+    stock: 104,
+    lowStockThreshold: 20,
+  },
+  {
+    id: "prd-11",
+    sku: "BENDERA-KALENG",
+    name: "BENDERA KALENG",
+    categoryId: "minuman",
+    retailPrice: 12000,
+    stock: 95,
+    lowStockThreshold: 16,
+  },
+  {
+    id: "prd-12",
+    sku: "INDOMILK-KALENG-PUTIH",
+    name: "INDOMILK KALENG PUTIH",
+    categoryId: "minuman",
+    retailPrice: 12000,
+    stock: 117,
+    lowStockThreshold: 18,
+  },
+  {
+    id: "prd-13",
+    sku: "OMELA-BESAR",
+    name: "OMELA BESAR",
+    categoryId: "minuman",
+    retailPrice: 12500,
+    stock: 153,
+    lowStockThreshold: 18,
+  },
+  {
+    id: "prd-14",
+    sku: "KAPAL-API-MIX",
+    name: "KAPAL API MIX",
+    categoryId: "kopi",
+    retailPrice: 2500,
+    stock: 148,
+    lowStockThreshold: 30,
+  },
+  {
+    id: "prd-15",
+    sku: "TEH-PUCUK",
+    name: "TEH PUCUK",
+    categoryId: "kopi",
+    retailPrice: 5500,
+    stock: 89,
+    lowStockThreshold: 20,
+  },
+  {
+    id: "prd-16",
+    sku: "ROMA-KELAPA",
+    name: "ROMA KELAPA",
+    categoryId: "snack",
+    retailPrice: 9000,
+    stock: 72,
+    lowStockThreshold: 18,
+  },
+];
+
+const customersSeed: Customer[] = [
+  {
+    id: "cus-1",
+    name: "Bu Yuni",
+    phone: "0812-7000-1188",
+    address: "Kebon Jeruk, Jakarta Barat",
+    loyaltyPoints: 485,
+  },
+  {
+    id: "cus-2",
+    name: "Kios Rajawali",
+    phone: "0812-4222-9988",
+    address: "Cengkareng, Jakarta Barat",
+    loyaltyPoints: 240,
+  },
+  {
+    id: "cus-3",
+    name: "Warung Sari",
+    phone: "0812-1456-8877",
+    address: "Palmerah, Jakarta Barat",
+    loyaltyPoints: 120,
+  },
+];
+
+const salesSeed: Sale[] = [
+  {
+    id: "sale-1049",
+    receiptNumber: "RCPT-1049",
+    customerId: "cus-1",
+    customerName: "Bu Yuni",
+    customerPhone: "0812-7000-1188",
+    total: 20250,
+    paymentMethod: "cash",
+    createdAt: "2026-03-29T23:50:00+07:00",
+    pointsUsed: 0,
+    pointsEarned: 202,
+    items: [
+      { productId: "prd-5", productName: "MIE INSTAN INTERMI (40)", quantity: 4, unitPrice: 1500, subtotal: 6000 },
+      { productId: "prd-9", productName: "RIMBA", quantity: 1, unitPrice: 10000, subtotal: 10000 },
+      { productId: "prd-14", productName: "KAPAL API MIX", quantity: 2, unitPrice: 2125, subtotal: 4250 },
+    ],
+  },
+  {
+    id: "sale-1048",
+    receiptNumber: "RCPT-1048",
+    customerName: "Umum",
+    total: 175774,
+    paymentMethod: "transfer",
+    createdAt: "2026-03-29T20:12:00+07:00",
+    pointsUsed: 0,
+    pointsEarned: 1757,
+    items: [
+      { productId: "prd-12", productName: "INDOMILK KALENG PUTIH", quantity: 8, unitPrice: 12000, subtotal: 96000 },
+      { productId: "prd-10", productName: "TAWON", quantity: 3, unitPrice: 15000, subtotal: 45000 },
+      { productId: "prd-16", productName: "ROMA KELAPA", quantity: 4, unitPrice: 8693.5, subtotal: 34774 },
+    ],
+  },
+  {
+    id: "sale-1046",
+    receiptNumber: "RCPT-1046",
+    customerId: "cus-2",
+    customerName: "Kios Rajawali",
+    customerPhone: "0812-4222-9988",
+    total: 18500,
+    paymentMethod: "cash",
+    createdAt: "2026-03-28T23:38:00+07:00",
+    pointsUsed: 0,
+    pointsEarned: 185,
+    items: [
+      { productId: "prd-1", productName: "SEDAAP MIE GR 91GR (40)", quantity: 2, unitPrice: 3500, subtotal: 7000 },
+      { productId: "prd-11", productName: "BENDERA KALENG", quantity: 1, unitPrice: 12000, subtotal: 12000 },
+    ],
+  },
+];
+
+const reportsSeed: ReportSnapshot[] = [
+  {
+    id: "report-1",
+    createdAt: "2026-04-01T08:30:00+07:00",
+    periodStart: "2026-03-01",
+    periodEnd: "2026-03-31",
+    salesTotal: 58190250,
+    refundTotal: 2415400,
+    topProduct: "SEDAAP MIE GR 91GR (40)",
+  },
+  {
+    id: "report-2",
+    createdAt: "2026-03-01T08:20:00+07:00",
+    periodStart: "2026-02-01",
+    periodEnd: "2026-02-29",
+    salesTotal: 54882100,
+    refundTotal: 1924600,
+    topProduct: "INDOMILK KALENG PUTIH",
+  },
+];
+
+const AppContext = createContext<AppContextValue | null>(null);
+const STORE_NAME = "MyPOS Sumber Kasih";
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function formatClockTime(value: Date) {
+  return new Intl.DateTimeFormat("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  })
+    .format(value)
+    .replaceAll(":", ".");
+}
+
+function formatLongIndonesianDate(value: Date) {
+  return new Intl.DateTimeFormat("id-ID", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(value);
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function formatShortDate(value: string) {
+  return new Intl.DateTimeFormat("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  })
+    .format(new Date(value))
+    .replace(",", "");
+}
+
+function formatReceiptDate(value: string) {
+  return new Intl.DateTimeFormat("id-ID", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  }).format(new Date(value));
+}
+
+function formatReceiptTime(value: string) {
+  return new Intl.DateTimeFormat("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  })
+    .format(new Date(value))
+    .replaceAll(":", ".");
+}
+
+function buildReceiptHtml({
+  sale,
+  storeName,
+}: {
+  sale: Sale;
+  storeName: string;
+}) {
+  const rows = sale.items
+    .map(
+      (item) => `
+        <tr>
+          <td class="name-cell">
+            <div class="item-name">${escapeHtml(item.productName)}</div>
+            <div class="item-meta">${item.quantity} x ${escapeHtml(formatCurrency(item.unitPrice))}</div>
+          </td>
+          <td class="amount-cell">${escapeHtml(formatCurrency(item.subtotal))}</td>
+        </tr>
+      `,
+    )
+    .join("");
+
+  const customerLine = sale.customerName ? `<div>Pelanggan: ${escapeHtml(sale.customerName)}</div>` : "";
+  const pointsUsedLine =
+    sale.pointsUsed > 0 ? `<div>Poin digunakan: ${escapeHtml(String(sale.pointsUsed))}</div>` : "";
+  const pointsEarnedLine = `<div>Poin didapat: ${escapeHtml(String(sale.pointsEarned))}</div>`;
+
+  return `<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <title>${escapeHtml(sale.receiptNumber)}</title>
+    <style>
+      @page { size: 58mm auto; margin: 6mm 5mm; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        color: #0f172a;
+        background: #ffffff;
+        font-family: "Courier New", monospace;
+      }
+      .receipt {
+        width: 48mm;
+        margin: 0 auto;
+        font-size: 11px;
+        line-height: 1.45;
+      }
+      .center { text-align: center; }
+      .divider {
+        margin: 6px 0;
+        white-space: pre;
+      }
+      .store-name {
+        font-size: 15px;
+        font-weight: 700;
+      }
+      .meta {
+        margin-top: 6px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      td {
+        vertical-align: top;
+        padding: 4px 0;
+      }
+      .name-cell {
+        width: 68%;
+        padding-right: 10px;
+      }
+      .amount-cell {
+        width: 32%;
+        text-align: right;
+        white-space: nowrap;
+      }
+      .item-name {
+        font-weight: 700;
+      }
+      .item-meta {
+        color: #475569;
+      }
+      .total-row {
+        display: flex;
+        justify-content: space-between;
+        font-weight: 700;
+        font-size: 12px;
+      }
+      .footer {
+        margin-top: 10px;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="receipt">
+      <div class="divider">================================</div>
+      <div class="center store-name">${escapeHtml(storeName)}</div>
+      <div class="center">${escapeHtml(sale.receiptNumber)}</div>
+      <div class="divider">================================</div>
+      <div class="meta">
+        <div>Tanggal: ${escapeHtml(formatReceiptDate(sale.createdAt))}</div>
+        <div>Jam: ${escapeHtml(formatReceiptTime(sale.createdAt))}</div>
+        ${customerLine}
+        ${pointsUsedLine}
+        ${pointsEarnedLine}
+      </div>
+      <div class="divider">--------------------------------</div>
+      <table>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+      <div class="divider">--------------------------------</div>
+      <div class="total-row">
+        <span>Total</span>
+        <span>${escapeHtml(formatCurrency(sale.total))}</span>
+      </div>
+      <div class="divider">================================</div>
+      <div class="footer">
+        <div>Terima kasih!</div>
+        <div>${escapeHtml(storeName)}</div>
+      </div>
+    </main>
+    <script>
+      window.addEventListener("load", function () {
+        window.focus();
+        window.print();
+      });
+      window.addEventListener("afterprint", function () {
+        window.close();
+      });
+    </script>
+  </body>
+</html>`;
+}
+
+function printSaleReceipt(sale: Sale) {
+  const printWindow = window.open("", "mypos-receipt", "width=420,height=720");
+  if (!printWindow) {
+    throw new Error("Popup struk diblokir browser. Izinkan pop-up lalu coba lagi.");
+  }
+
+  printWindow.document.open();
+  printWindow.document.write(
+    buildReceiptHtml({
+      sale,
+      storeName: STORE_NAME,
+    }),
+  );
+  printWindow.document.close();
+}
+
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .toUpperCase();
+}
+
+function makeId(prefix: string) {
+  return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+type ImportRow = {
+  id?: string;
+  name: string;
+  category: string;
+  netPrice?: number;
+  wholesalePrice?: number;
+  retailPrice: number;
+};
+
+function normalizeImportRows(rawRows: unknown[][]): ImportRow[] {
+  if (!rawRows.length) {
+    return [];
+  }
+
+  const [headerRow, ...dataRows] = rawRows;
+  const headers = headerRow.map((cell) => String(cell ?? "").trim().toLowerCase());
+  const idIndex = headers.findIndex((header) => header === "id");
+  const nameIndex = headers.findIndex((header) => header === "name");
+  const categoryIndex = headers.findIndex(
+    (header) => header === "category" || header === "kategori" || header === "kriteria",
+  );
+  const retailPriceIndex = headers.findIndex(
+    (header) =>
+      header === "eceran price" ||
+      header === "eceranprice" ||
+      header === "retail price" ||
+      header === "retailprice" ||
+      header === "harga retail" ||
+      header === "harga" ||
+      header === "price",
+  );
+  const netPriceIndex = headers.findIndex(
+    (header) => header === "net price" || header === "netprice" || header === "harga net",
+  );
+  const wholesalePriceIndex = headers.findIndex(
+    (header) =>
+      header === "grosir price" ||
+      header === "grosirprice" ||
+      header === "wholesale price" ||
+      header === "wholesaleprice" ||
+      header === "harga grosir",
+  );
+
+  if (nameIndex === -1 || categoryIndex === -1 || retailPriceIndex === -1) {
+    throw new Error(
+      "Header file harus memiliki kolom: Name, Kriteria, Eceran Price. Net Price dan Grosir Price boleh ditambahkan.",
+    );
+  }
+
+  return dataRows
+    .map((row) => {
+      const retailPrice = Number.parseFloat(
+        String(row[retailPriceIndex] ?? "").replace(/[^0-9.-]/g, ""),
       );
+      const netPrice =
+        netPriceIndex === -1
+          ? Number.NaN
+          : Number.parseFloat(String(row[netPriceIndex] ?? "").replace(/[^0-9.-]/g, ""));
+      const wholesalePrice =
+        wholesalePriceIndex === -1
+          ? Number.NaN
+          : Number.parseFloat(
+              String(row[wholesalePriceIndex] ?? "").replace(/[^0-9.-]/g, ""),
+            );
+
+      return {
+        id:
+          idIndex >= 0 && row[idIndex] !== undefined && row[idIndex] !== null
+            ? String(row[idIndex]).trim()
+            : undefined,
+        name: String(row[nameIndex] ?? "").trim(),
+        category: String(row[categoryIndex] ?? "").trim(),
+        netPrice: Number.isFinite(netPrice) ? netPrice : undefined,
+        wholesalePrice: Number.isFinite(wholesalePrice) ? wholesalePrice : undefined,
+        retailPrice,
+      };
+    })
+    .filter(
+      (row) =>
+        row.name &&
+        row.category &&
+        Number.isFinite(row.retailPrice) &&
+        row.retailPrice > 0,
+    );
+}
+
+async function parseImportFile(file: File): Promise<ImportRow[]> {
+  const lowerName = file.name.toLowerCase();
+  if (lowerName.endsWith(".csv")) {
+    const text = await file.text();
+    const rows = text
+      .split(/\r?\n/)
+      .map((line) => line.split(",").map((cell) => cell.trim()))
+      .filter((row) => row.some(Boolean));
+    return normalizeImportRows(rows);
+  }
+
+  if (lowerName.endsWith(".xlsx") || lowerName.endsWith(".xls")) {
+    const arrayBuffer = await file.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer, { type: "array" });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(sheet, {
+      header: 1,
+      raw: false,
+      blankrows: false,
+    }) as unknown[][];
+    return normalizeImportRows(rows);
+  }
+
+  throw new Error("Format file belum didukung. Gunakan .csv atau .xlsx.");
+}
+
+function IconBase({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24">
+      {children}
+    </svg>
+  );
+}
+
+function PosIcon() {
+  return (
+    <IconBase>
+      <rect x="4" y="4" width="16" height="12" rx="2" />
+      <path d="M8 20h8" />
+      <path d="M10 16v4" />
+      <path d="M14 16v4" />
+    </IconBase>
+  );
+}
+
+function RotateIcon() {
+  return (
+    <IconBase>
+      <path d="M20 12a8 8 0 1 1-2.34-5.66" />
+      <path d="M20 4v6h-6" />
+    </IconBase>
+  );
+}
+
+function BoxIcon() {
+  return (
+    <IconBase>
+      <path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z" />
+      <path d="m12 12 8-4.5" />
+      <path d="m12 12-8-4.5" />
+      <path d="M12 12v9" />
+    </IconBase>
+  );
+}
+
+function ChartIcon() {
+  return (
+    <IconBase>
+      <path d="M4 20h16" />
+      <path d="M7 17V10" />
+      <path d="M12 17V6" />
+      <path d="M17 17v-4" />
+    </IconBase>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <IconBase>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="m16 16 4 4" />
+    </IconBase>
+  );
+}
+
+function PanelOpenIcon() {
+  return (
+    <IconBase>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M9 4v16" />
+      <path d="m14 12 3-3" />
+      <path d="m14 12 3 3" />
+    </IconBase>
+  );
+}
+
+function PanelCloseIcon() {
+  return (
+    <IconBase>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M15 4v16" />
+      <path d="m10 12 3-3" />
+      <path d="m10 12 3 3" />
+    </IconBase>
+  );
+}
+
+function AppProvider({ children }: { children: ReactNode }) {
+  const [session, setSessionState] = useState<Session | null>(() => {
+    const raw = window.localStorage.getItem("mypos-session");
+    return raw ? (JSON.parse(raw) as Session) : null;
+  });
+  const [sidebarCollapsed, setSidebarCollapsedState] = useState(false);
+  const [customers, setCustomersState] = useState<Customer[]>(customersSeed);
+  const [categories, setCategoriesState] = useState<Category[]>(categoriesSeed);
+  const [products, setProductsState] = useState<Product[]>(productsSeed);
+  const [sales, setSalesState] = useState<Sale[]>(salesSeed);
+  const [refunds, setRefundsState] = useState<RefundRecord[]>([]);
+  const [reports, setReportsState] = useState<ReportSnapshot[]>(reportsSeed);
+
+  useEffect(() => {
+    if (session) {
+      window.localStorage.setItem("mypos-session", JSON.stringify(session));
+    } else {
+      window.localStorage.removeItem("mypos-session");
     }
+  }, [session]);
+
+  const value: AppContextValue = {
+    session,
+    setSession: setSessionState,
+    sidebarCollapsed,
+    setSidebarCollapsed: setSidebarCollapsedState,
+    customers,
+    setCustomers: (updater) =>
+      setCustomersState((current) =>
+        typeof updater === "function"
+          ? (updater as (value: Customer[]) => Customer[])(current)
+          : updater,
+      ),
+    categories,
+    setCategories: (updater) =>
+      setCategoriesState((current) =>
+        typeof updater === "function"
+          ? (updater as (value: Category[]) => Category[])(current)
+          : updater,
+      ),
+    products,
+    setProducts: (updater) =>
+      setProductsState((current) =>
+        typeof updater === "function"
+          ? (updater as (value: Product[]) => Product[])(current)
+          : updater,
+      ),
+    sales,
+    setSales: (updater) =>
+      setSalesState((current) =>
+        typeof updater === "function"
+          ? (updater as (value: Sale[]) => Sale[])(current)
+          : updater,
+      ),
+    refunds,
+    setRefunds: (updater) =>
+      setRefundsState((current) =>
+        typeof updater === "function"
+          ? (updater as (value: RefundRecord[]) => RefundRecord[])(current)
+          : updater,
+      ),
+    reports,
+    setReports: (updater) =>
+      setReportsState((current) =>
+        typeof updater === "function"
+          ? (updater as (value: ReportSnapshot[]) => ReportSnapshot[])(current)
+          : updater,
+      ),
   };
 
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+}
+
+function useAppModel() {
+  const context = useContext(AppContext);
+  if (!context) {
+    throw new Error("App context is missing.");
+  }
+  return context;
+}
+
+function ProtectedPage({
+  title,
+  pageClass,
+  children,
+}: {
+  title: string;
+  pageClass: string;
+  children: ReactNode;
+}) {
+  const { session, sidebarCollapsed, setSidebarCollapsed, setSession } = useAppModel();
+  const location = useLocation();
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  if (!session) {
+    return <Navigate to="/login" replace />;
+  }
+
+  const shellClass = sidebarCollapsed ? "site-shell site-shell--collapsed" : "site-shell";
+  const sidebarClass = sidebarCollapsed ? "sidebar sidebar--collapsed" : "sidebar";
+
   return (
-    <Layout currentView={currentView} setCurrentView={setCurrentView}>
-      {renderView()}
-    </Layout>
+    <div className={pageClass}>
+      <div className={shellClass}>
+        <aside className={sidebarClass}>
+          <div className="sidebar__header">
+            <div className="sidebar__brand">
+              <p className="sidebar__brand-kicker">POS Lokal</p>
+              <h1 className="sidebar__brand-title sidebar__brand-title--small">
+                MyPOS Sumber Kasih
+              </h1>
+            </div>
+            <button
+              type="button"
+              className="sidebar__toggle"
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              aria-label={sidebarCollapsed ? "Buka sidebar" : "Tutup sidebar"}
+            >
+              {sidebarCollapsed ? <PanelOpenIcon /> : <PanelCloseIcon />}
+            </button>
+          </div>
+          <div className="sidebar__divider" />
+          <nav className="sidebar__nav">
+            <div className="nav-list">
+              <NavLink
+                to="/transactions"
+                className={({ isActive }) => `nav-link${isActive ? " is-active" : ""}`}
+              >
+                <span className="nav-link__icon">
+                  <PosIcon />
+                </span>
+                <span className="nav-link__label">Transaksi</span>
+              </NavLink>
+              <NavLink
+                to="/refunds"
+                className={({ isActive }) => `nav-link${isActive ? " is-active" : ""}`}
+              >
+                <span className="nav-link__icon">
+                  <RotateIcon />
+                </span>
+                <span className="nav-link__label">Refund</span>
+              </NavLink>
+              <NavLink
+                to="/products"
+                className={({ isActive }) => `nav-link${isActive ? " is-active" : ""}`}
+              >
+                <span className="nav-link__icon">
+                  <BoxIcon />
+                </span>
+                <span className="nav-link__label">Produk</span>
+              </NavLink>
+              <NavLink
+                to="/reports"
+                className={({ isActive }) => `nav-link${isActive ? " is-active" : ""}`}
+              >
+                <span className="nav-link__icon">
+                  <ChartIcon />
+                </span>
+                <span className="nav-link__label">Laporan</span>
+              </NavLink>
+            </div>
+          </nav>
+          <div className="sidebar__divider" />
+          <div className="sidebar__footer">
+            <div className="sidebar__footer-copy">
+              <strong>{session.name}</strong>
+              <div>Tipe: {session.role === "owner" ? "Pemilik" : "Karyawan"}</div>
+              <div>Data tersimpan lokal di browser ini.</div>
+            </div>
+            <div className="spacer-top">
+              <button
+                type="button"
+                className="button button--secondary button--full"
+                onClick={() => setSession(null)}
+              >
+                Log Out
+              </button>
+            </div>
+          </div>
+        </aside>
+        <div className="page-area">
+          <header className="topbar">
+            <h2 className="topbar__title">{title}</h2>
+            <div className="topbar__clock">
+              <div className="topbar__time">{formatClockTime(now)}</div>
+              <div className="topbar__date">{formatLongIndonesianDate(now)}</div>
+            </div>
+          </header>
+          <main className="page-content" key={location.pathname}>
+            {children}
+          </main>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LoginPage() {
+  const { session, setSession } = useAppModel();
+  const navigate = useNavigate();
+  const [selectedRole, setSelectedRole] = useState<Role>("owner");
+  const [name, setName] = useState("Pemilik");
+
+  if (session) {
+    return <Navigate to="/transactions" replace />;
+  }
+
+  return (
+    <div className="login-page">
+      <main className="login-shell">
+        <section className="login-card">
+          <div className="login-card__head">
+            <p className="eyebrow">POS Lokal</p>
+            <h1 className="card-title">MyPOS Sumber Kasih</h1>
+            <p className="card-subtitle">Pilih peran Anda untuk masuk</p>
+          </div>
+          <div className="form-stack">
+            <button
+              type="button"
+              className={`role-card${selectedRole === "employee" ? " is-selected" : ""}`}
+              onClick={() => {
+                setSelectedRole("employee");
+                if (!name || name === "Pemilik") {
+                  setName("Karyawan");
+                }
+              }}
+            >
+              <h2 className="role-card__title">Karyawan</h2>
+              <p className="role-card__copy">
+                Akses ke transaksi, refund, produk, dan laporan.
+              </p>
+            </button>
+            <button
+              type="button"
+              className={`role-card${selectedRole === "owner" ? " is-selected" : ""}`}
+              onClick={() => {
+                setSelectedRole("owner");
+                if (!name || name === "Karyawan") {
+                  setName("Pemilik");
+                }
+              }}
+            >
+              <h2 className="role-card__title">Pemilik</h2>
+              <p className="role-card__copy">
+                Akses penuh ke semua fitur dan ringkasan operasional toko.
+              </p>
+            </button>
+            <label className="field-group">
+              <span className="field-label">Nama (opsional)</span>
+              <input
+                className="field"
+                type="text"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+              />
+            </label>
+            <button
+              type="button"
+              className="button button--primary button--full"
+              onClick={() => {
+                setSession({
+                  role: selectedRole,
+                  name: name.trim() || (selectedRole === "owner" ? "Pemilik" : "Karyawan"),
+                });
+                navigate("/transactions");
+              }}
+            >
+              Masuk
+            </button>
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+}
+
+type CartLine = { productId: string; quantity: number };
+
+function TransactionsRoute() {
+  const { sidebarCollapsed } = useAppModel();
+  const [step, setStep] = useState<"lookup" | "order" | "payment" | "receipt">("lookup");
+
+  const pageClass =
+    step === "lookup"
+      ? "transactions-lookup-page"
+      : step === "payment"
+        ? "transactions-payment-loyalty-page"
+        : step === "receipt"
+          ? "transactions-receipt-page"
+          : sidebarCollapsed
+            ? "transactions-order-collapsed-page"
+            : "transactions-order-expanded-page";
+
+  return (
+    <ProtectedPage title="Transaksi" pageClass={pageClass}>
+      <TransactionsPage step={step} setStep={setStep} />
+    </ProtectedPage>
+  );
+}
+
+function TransactionsPage({
+  step,
+  setStep,
+}: {
+  step: "lookup" | "order" | "payment" | "receipt";
+  setStep: (step: "lookup" | "order" | "payment" | "receipt") => void;
+}) {
+  const {
+    customers,
+    setCustomers,
+    products,
+    setProducts,
+    categories,
+    sales,
+    setSales,
+    sidebarCollapsed,
+  } = useAppModel();
+  const [searchCustomer, setSearchCustomer] = useState("");
+  const [showCreateCustomer, setShowCreateCustomer] = useState(false);
+  const [newCustomerName, setNewCustomerName] = useState("");
+  const [newCustomerPhone, setNewCustomerPhone] = useState("");
+  const [newCustomerAddress, setNewCustomerAddress] = useState("");
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>("cus-1");
+  const [productQuery, setProductQuery] = useState("");
+  const [activeCategoryId, setActiveCategoryId] = useState<string>("all");
+  const [cart, setCart] = useState<CartLine[]>([
+    { productId: "prd-1", quantity: 4 },
+    { productId: "prd-4", quantity: 3 },
+    { productId: "prd-5", quantity: 5 },
+  ]);
+  const [usePoints, setUsePoints] = useState(true);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
+  const [completedSale, setCompletedSale] = useState<Sale | null>(null);
+  const [receiptMessage, setReceiptMessage] = useState(
+    "Struk digital akan diarahkan ke nomor 0812-7000-1188 dan tetap bisa diteruskan pelanggan.",
+  );
+  const [printStatus, setPrintStatus] = useState("");
+
+  const selectedCustomer =
+    customers.find((customer) => customer.id === selectedCustomerId) ?? null;
+
+  const matchingCustomers = customers.filter((customer) => {
+    const query = searchCustomer.trim().toLowerCase();
+    if (!query) return true;
+    return (
+      customer.name.toLowerCase().includes(query) ||
+      customer.phone?.includes(searchCustomer) ||
+      customer.address?.toLowerCase().includes(query)
+    );
+  });
+
+  const categoryNameById = new Map<string, string>(
+    categories.map((category) => [category.id, category.name]),
+  );
+  const categoryTabs = categories
+    .filter((category) => products.some((product) => product.categoryId === category.id))
+    .map((category) => ({
+      id: category.id,
+      name: category.name,
+      count: products.filter((product) => product.categoryId === category.id).length,
+    }));
+
+  useEffect(() => {
+    if (activeCategoryId !== "all" && !categoryTabs.some((category) => category.id === activeCategoryId)) {
+      setActiveCategoryId("all");
+    }
+  }, [activeCategoryId, categoryTabs]);
+
+  const filteredProducts = products.filter((product) => {
+    const matchesCategory = activeCategoryId === "all" || product.categoryId === activeCategoryId;
+    const query = productQuery.trim().toLowerCase();
+    const categoryName = categoryNameById.get(product.categoryId)?.toLowerCase() ?? "";
+    const matchesQuery =
+      !query ||
+      product.name.toLowerCase().includes(query) ||
+      product.sku.toLowerCase().includes(query) ||
+      categoryName.includes(query);
+    return matchesCategory && matchesQuery;
+  });
+
+  const cartItems = cart
+    .map((line) => {
+      const product = products.find((entry) => entry.id === line.productId);
+      if (!product) return null;
+      return {
+        product,
+        quantity: line.quantity,
+        subtotal: product.retailPrice * line.quantity,
+      };
+    })
+    .filter((item): item is { product: Product; quantity: number; subtotal: number } => item !== null);
+
+  const cartCount = cart.reduce((total, line) => total + line.quantity, 0);
+  const subtotal = cartItems.reduce((total, item) => total + item.subtotal, 0);
+  const pointsUsed = usePoints && selectedCustomer ? Math.min(selectedCustomer.loyaltyPoints, subtotal) : 0;
+  const finalTotal = Math.max(subtotal - pointsUsed, 0);
+  const pointsEarned = Math.floor(subtotal * 0.01);
+
+  function addToCart(productId: string) {
+    setCart((current) => {
+      const existing = current.find((line) => line.productId === productId);
+      if (!existing) {
+        return [...current, { productId, quantity: 1 }];
+      }
+      return current.map((line) =>
+        line.productId === productId
+          ? { ...line, quantity: line.quantity + 1 }
+          : line,
+      );
+    });
+  }
+
+  function updateQuantity(productId: string, nextQuantity: number) {
+    if (nextQuantity <= 0) {
+      setCart((current) => current.filter((line) => line.productId !== productId));
+      return;
+    }
+    setCart((current) =>
+      current.map((line) =>
+        line.productId === productId ? { ...line, quantity: nextQuantity } : line,
+      ),
+    );
+  }
+
+  function startOrder(customerId: string | null) {
+    setSelectedCustomerId(customerId);
+    setStep("order");
+  }
+
+  function createCustomer() {
+    if (!newCustomerName.trim()) {
+      return;
+    }
+    const customer: Customer = {
+      id: makeId("cus"),
+      name: newCustomerName.trim(),
+      phone: newCustomerPhone.trim() || undefined,
+      address: newCustomerAddress.trim() || undefined,
+      loyaltyPoints: 0,
+    };
+    setCustomers((current) => [customer, ...current]);
+    setNewCustomerName("");
+    setNewCustomerPhone("");
+    setNewCustomerAddress("");
+    setShowCreateCustomer(false);
+    startOrder(customer.id);
+  }
+
+  function completeTransaction() {
+    if (!cartItems.length) {
+      return;
+    }
+
+    const receiptIndex =
+      Math.max(
+        1049,
+        ...sales.map((sale) => Number.parseInt(sale.receiptNumber.replace("RCPT-", ""), 10)),
+      ) + 1;
+
+    const sale: Sale = {
+      id: makeId("sale"),
+      receiptNumber: `RCPT-${receiptIndex}`,
+      customerId: selectedCustomer?.id,
+      customerName: selectedCustomer?.name ?? "Umum",
+      customerPhone: selectedCustomer?.phone,
+      items: cartItems.map((item) => ({
+        productId: item.product.id,
+        productName: item.product.name,
+        quantity: item.quantity,
+        unitPrice: item.product.retailPrice,
+        subtotal: item.subtotal,
+      })),
+      total: subtotal,
+      paymentMethod,
+      createdAt: new Date().toISOString(),
+      pointsUsed,
+      pointsEarned,
+    };
+
+    setProducts((current) =>
+      current.map((product) => {
+        const sold = cart.find((line) => line.productId === product.id);
+        return sold ? { ...product, stock: Math.max(product.stock - sold.quantity, 0) } : product;
+      }),
+    );
+
+    if (selectedCustomer) {
+      setCustomers((current) =>
+        current.map((customer) =>
+          customer.id === selectedCustomer.id
+            ? {
+                ...customer,
+                loyaltyPoints: customer.loyaltyPoints - pointsUsed + pointsEarned,
+              }
+            : customer,
+        ),
+      );
+      setReceiptMessage(
+        selectedCustomer.phone
+          ? `Struk digital akan diarahkan ke nomor ${selectedCustomer.phone} dan tetap bisa diteruskan pelanggan.`
+          : "Pilih pelanggan dengan nomor WhatsApp untuk kirim langsung, atau bagikan manual.",
+      );
+    } else {
+      setReceiptMessage("Struk siap dicetak dan dapat dibagikan manual ke pelanggan umum.");
+    }
+
+    setSales((current) => [sale, ...current]);
+    setCompletedSale(sale);
+    setPrintStatus("");
+    setStep("receipt");
+  }
+
+  function resetTransaction() {
+    setSearchCustomer("");
+    setShowCreateCustomer(false);
+    setSelectedCustomerId("cus-1");
+    setProductQuery("");
+    setActiveCategoryId("all");
+    setCart([
+      { productId: "prd-1", quantity: 4 },
+      { productId: "prd-4", quantity: 3 },
+      { productId: "prd-5", quantity: 5 },
+    ]);
+    setUsePoints(true);
+    setPaymentMethod("cash");
+    setCompletedSale(null);
+    setPrintStatus("");
+    setStep("lookup");
+  }
+
+  function handlePrintReceipt() {
+    if (!completedSale) {
+      return;
+    }
+
+    try {
+      printSaleReceipt(completedSale);
+      setPrintStatus("Jendela print struk dibuka. Lanjutkan dari dialog print browser.");
+    } catch (error) {
+      setPrintStatus(error instanceof Error ? error.message : "Gagal membuka print struk.");
+    }
+  }
+
+  if (step === "lookup") {
+    return (
+      <div className="page-stack page-width-lg">
+        <section className="panel">
+          <h1 className="page-heading">Data Pelanggan</h1>
+          <p className="section-subtitle">Cari pelanggan berdasarkan nama atau nomor telepon.</p>
+          <div className="form-stack spacer-top">
+            <label className="field-group">
+              <span className="field-label">Cari pelanggan</span>
+              <input
+                className="field"
+                type="text"
+                value={searchCustomer}
+                placeholder="Ketik nama atau telepon..."
+                onChange={(event) => setSearchCustomer(event.target.value)}
+              />
+            </label>
+            {matchingCustomers.length > 0 ? (
+              <div className="table-shell">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Pelanggan</th>
+                      <th>Telepon</th>
+                      <th>Poin</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {matchingCustomers.slice(0, 6).map((customer) => (
+                      <tr key={customer.id}>
+                        <td>{customer.name}</td>
+                        <td>{customer.phone ?? "-"}</td>
+                        <td>{customer.loyaltyPoints}</td>
+                        <td className="text-right">
+                          <button
+                            type="button"
+                            className="button button--ghost"
+                            onClick={() => startOrder(customer.id)}
+                          >
+                            Pilih
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+            <div className="button-row">
+              <button
+                type="button"
+                className="button button--primary"
+                onClick={() => setShowCreateCustomer(true)}
+              >
+                Buat Pelanggan Baru
+              </button>
+              <button
+                type="button"
+                className="button button--secondary"
+                onClick={() => startOrder(null)}
+              >
+                Lewati (Pelanggan Umum)
+              </button>
+            </div>
+          </div>
+        </section>
+        {showCreateCustomer ? (
+          <section className="panel">
+            <h2 className="card-title" style={{ fontSize: 28 }}>
+              Buat Pelanggan Baru
+            </h2>
+            <div className="form-stack spacer-top">
+              <label className="field-group">
+                <span className="field-label">Nama</span>
+                <input
+                  className="field"
+                  value={newCustomerName}
+                  onChange={(event) => setNewCustomerName(event.target.value)}
+                />
+              </label>
+              <label className="field-group">
+                <span className="field-label">Telepon</span>
+                <input
+                  className="field"
+                  value={newCustomerPhone}
+                  onChange={(event) => setNewCustomerPhone(event.target.value)}
+                />
+              </label>
+              <label className="field-group">
+                <span className="field-label">Alamat</span>
+                <textarea
+                  className="textarea-field"
+                  value={newCustomerAddress}
+                  onChange={(event) => setNewCustomerAddress(event.target.value)}
+                />
+              </label>
+              <div className="button-row">
+                <button type="button" className="button button--primary" onClick={createCustomer}>
+                  Simpan
+                </button>
+                <button
+                  type="button"
+                  className="button button--ghost"
+                  onClick={() => setShowCreateCustomer(false)}
+                >
+                  Batal
+                </button>
+              </div>
+            </div>
+          </section>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (step === "payment") {
+    return (
+      <div className="page-width-md page-stack">
+        <section className="panel center-card">
+          <div className="compact-header">
+            <button type="button" className="button button--ghost" onClick={() => setStep("order")}>
+              Kembali
+            </button>
+            <h1 className="page-heading">Pembayaran</h1>
+          </div>
+          <div className="info-stack spacer-top">
+            <article className="summary-box surface--soft">
+              <div className="stat-label">Subtotal Pesanan</div>
+              <div className="summary-box__value" style={{ color: "var(--color-primary)" }}>
+                {formatCurrency(subtotal)}
+              </div>
+            </article>
+            <article className="summary-box surface--soft">
+              <div className="stat-label">Saldo Poin Loyalitas</div>
+              <div className="summary-box__value">{selectedCustomer?.loyaltyPoints ?? 0} poin</div>
+            </article>
+            <article className="summary-box surface--accent">
+              <div className="page-heading" style={{ fontSize: 22 }}>
+                Gunakan poin loyalitas?
+              </div>
+              <p className="card-subtitle">
+                Poin pelanggan akan langsung mengurangi total pembayaran.
+              </p>
+              <div className="button-row spacer-top">
+                <button
+                  type="button"
+                  className="button button--primary"
+                  onClick={() => setUsePoints(true)}
+                >
+                  Ya, Gunakan Poin
+                </button>
+                <button
+                  type="button"
+                  className="button button--secondary"
+                  onClick={() => setUsePoints(false)}
+                >
+                  Tidak
+                </button>
+              </div>
+            </article>
+            <article className="summary-box surface--dark">
+              <div className="stat-label" style={{ color: "rgba(255,255,255,0.7)" }}>
+                Harga Setelah Potongan Poin
+              </div>
+              <div className="summary-box__value">{formatCurrency(finalTotal)}</div>
+              <div className="summary-box__subvalue">Poin digunakan: {pointsUsed}</div>
+            </article>
+            <article className="summary-box surface--soft">
+              <div className="stat-label">Poin Didapatkan dari Transaksi Ini (1%)</div>
+              <div className="small-value">+{pointsEarned} poin</div>
+            </article>
+            <label className="field-group">
+              <span className="field-label">Metode Pembayaran</span>
+              <select
+                className="select-field"
+                value={paymentMethod}
+                onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}
+              >
+                <option value="cash">Tunai</option>
+                <option value="transfer">Transfer</option>
+              </select>
+            </label>
+            <button
+              type="button"
+              className="button button--primary button--full"
+              onClick={completeTransaction}
+            >
+              Print Struk
+            </button>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  if (step === "receipt" && completedSale) {
+    return (
+      <div className="page-width-md page-stack">
+        <section className="panel center-card">
+          <h1 className="page-heading">Transaksi Selesai</h1>
+          <div className="info-stack spacer-top">
+            <article className="summary-box surface--soft">
+              <div className="stat-label">No. Struk</div>
+              <div className="summary-box__value">{completedSale.receiptNumber}</div>
+            </article>
+            <div className="result-grid">
+              <article className="summary-box surface--soft">
+                <div className="stat-label">Total</div>
+                <div className="small-value" style={{ color: "var(--color-primary)" }}>
+                  {formatCurrency(completedSale.total)}
+                </div>
+              </article>
+              <article className="summary-box surface--soft">
+                <div className="stat-label">Item</div>
+                <div className="small-value">{completedSale.items.length}</div>
+              </article>
+            </div>
+            {completedSale.pointsUsed > 0 ? (
+              <article className="summary-box surface--accent">
+                <div className="stat-label" style={{ color: "var(--color-primary)" }}>
+                  Poin Digunakan
+                </div>
+                <div className="small-value" style={{ color: "var(--color-primary)" }}>
+                  -{completedSale.pointsUsed} poin
+                </div>
+              </article>
+            ) : null}
+            <article className="summary-box surface--soft">
+              <div className="stat-label">Poin Didapatkan (1% dari total)</div>
+              <div className="small-value">+{completedSale.pointsEarned} poin</div>
+            </article>
+            <section className="receipt-list">
+              <div className="receipt-list__head">Ringkasan Struk</div>
+              <div className="receipt-list__body">
+                {completedSale.items.map((item) => (
+                  <article className="receipt-item" key={`${item.productId}-${item.productName}`}>
+                    <div>
+                      <h3 className="receipt-item__title">{item.productName}</h3>
+                      <div className="receipt-item__meta">
+                        {item.quantity} x {formatCurrency(item.unitPrice)}
+                      </div>
+                    </div>
+                    <strong>{formatCurrency(item.subtotal)}</strong>
+                  </article>
+                ))}
+              </div>
+            </section>
+            <button
+              type="button"
+              className="button button--primary button--full"
+              onClick={handlePrintReceipt}
+            >
+              Cetak Struk
+            </button>
+            <div className="two-col">
+              <button type="button" className="button button--secondary button--full" onClick={resetTransaction}>
+                Bagikan ke WhatsApp
+              </button>
+              <button type="button" className="button button--ghost button--full" onClick={resetTransaction}>
+                Salin Teks Struk
+              </button>
+            </div>
+            <article className="notice notice--success">{receiptMessage}</article>
+            {printStatus ? <article className="notice notice--success">{printStatus}</article> : null}
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  return (
+    <div className="layout-split">
+      <section className="panel catalog-shell">
+        <div className="hero-panel">
+          <div className="hero-grid">
+            <div className="hero-search-card">
+              <div className="hero-search-label">Cari produk</div>
+              <div className="search-input">
+                <span className="search-input__icon">
+                  <SearchIcon />
+                </span>
+                <input
+                  className="field"
+                  type="text"
+                  value={productQuery}
+                  onChange={(event) => setProductQuery(event.target.value)}
+                />
+              </div>
+              {selectedCustomer ? (
+                <p className="card-subtitle">
+                  Pelanggan: {selectedCustomer.name} · {selectedCustomer.loyaltyPoints} poin
+                </p>
+              ) : (
+                <p className="card-subtitle">Pelanggan umum · tanpa poin loyalitas</p>
+              )}
+            </div>
+            <div className="stats-pair">
+              <article className="metric-tile metric-tile--light">
+                <div className="metric-kicker">Produk</div>
+                <div className="metric-number">{filteredProducts.length}</div>
+                <div className="metric-status">Ready</div>
+              </article>
+              <article className="metric-tile metric-tile--dark">
+                <div className="metric-kicker">Keranjang</div>
+                <div className="metric-number">{cartCount}</div>
+                <div className="metric-status">Aktif</div>
+              </article>
+            </div>
+          </div>
+          <div className="chip-row spacer-top">
+            <button
+              type="button"
+              className={`chip${activeCategoryId === "all" ? " is-active" : ""}`}
+              onClick={() => setActiveCategoryId("all")}
+            >
+              Semua ({products.length})
+            </button>
+            {categoryTabs.map((category) => (
+              <button
+                key={category.id}
+                type="button"
+                className={`chip${activeCategoryId === category.id ? " is-active" : ""}`}
+                onClick={() => setActiveCategoryId(category.id)}
+              >
+                {category.name} ({category.count})
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="catalog-body">
+          <div className={sidebarCollapsed ? "product-grid product-grid--wide" : "product-grid"}>
+            {filteredProducts.length ? filteredProducts.map((product) => {
+              const category = categories.find((entry) => entry.id === product.categoryId);
+              return (
+                <button
+                  key={product.id}
+                  type="button"
+                  className="product-card"
+                  onClick={() => addToCart(product.id)}
+                >
+                  <div className="product-card__top">
+                    <h3 className="product-card__title">{product.name}</h3>
+                    <span className="pill">{product.stock}</span>
+                  </div>
+                  <div className="product-card__category">{category?.name ?? "-"}</div>
+                  <div className="product-card__price">{formatCurrency(product.retailPrice)}</div>
+                </button>
+              );
+            }) : (
+              <article className="empty-state">
+                <h3 className="empty-state__title">Produk tidak ditemukan</h3>
+                <p className="empty-state__copy">
+                  Coba pindah ke tab kategori lain atau kosongkan pencarian agar semua produk yang sudah di-upload terlihat.
+                </p>
+              </article>
+            )}
+          </div>
+        </div>
+      </section>
+      <aside className="panel checkout-panel">
+        <div className="checkout-panel__header">
+          <div>
+            <p className="eyebrow">Checkout</p>
+            <h2 className="card-title" style={{ fontSize: 30 }}>
+              Pesanan
+            </h2>
+          </div>
+          <button type="button" className="button button--ghost" onClick={() => setCart([])}>
+            Kosongkan
+          </button>
+        </div>
+        <div className="checkout-panel__body">
+          {cartItems.length ? (
+            cartItems.map((item) => (
+              <article className="cart-row" key={item.product.id}>
+                <div className="cart-row__top">
+                  <div>
+                    <h3 className="cart-row__title">{item.product.name}</h3>
+                    <div className="cart-row__meta">Retail</div>
+                  </div>
+                  <button
+                    type="button"
+                    className="button button--ghost"
+                    onClick={() => updateQuantity(item.product.id, 0)}
+                  >
+                    Hapus
+                  </button>
+                </div>
+                <div className="cart-row__bottom">
+                  <strong>{formatCurrency(item.subtotal)}</strong>
+                  <div className="qty-stepper">
+                    <button
+                      type="button"
+                      className="qty-stepper__button"
+                      onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                    >
+                      -
+                    </button>
+                    <span className="qty-stepper__value">{item.quantity}</span>
+                    <button
+                      type="button"
+                      className="qty-stepper__button"
+                      onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              </article>
+            ))
+          ) : (
+            <div className="empty-state">
+              <h3 className="empty-state__title">Belum ada item</h3>
+              <p className="empty-state__copy">Tambahkan produk dari panel kiri.</p>
+            </div>
+          )}
+        </div>
+        <div className="checkout-panel__footer">
+          <div className="summary-box surface--dark">
+            <div className="summary-box__top">
+              <span>Total</span>
+              <span>{cartCount} item</span>
+            </div>
+            <div className="summary-box__value">{formatCurrency(subtotal)}</div>
+          </div>
+          <div className="spacer-top">
+            <button
+              type="button"
+              className="button button--primary button--full"
+              onClick={() => setStep("payment")}
+              disabled={!cartItems.length}
+            >
+              Proses Pesanan
+            </button>
+          </div>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function ProductsRoute() {
+  const [tab, setTab] = useState<ProductTab>("categories");
+  const pageClass =
+    tab === "import"
+      ? "products-import-page"
+      : tab === "stock"
+        ? "products-stock-page"
+        : "products-categories-page";
+
+  return (
+    <ProtectedPage title="Produk" pageClass={pageClass}>
+      <ProductsPage tab={tab} setTab={setTab} />
+    </ProtectedPage>
+  );
+}
+
+function ProductsPage({
+  tab,
+  setTab,
+}: {
+  tab: ProductTab;
+  setTab: (tab: ProductTab) => void;
+}) {
+  const { categories, setCategories, products, setProducts } = useAppModel();
+  const [importMessage, setImportMessage] = useState("");
+  const [isDragActive, setIsDragActive] = useState(false);
+  const [categoryName, setCategoryName] = useState("SNACK");
+  const [categoryDescription, setCategoryDescription] = useState(
+    "Biskuit, keripik, wafer, dan pelengkap kasir cepat.",
+  );
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [adjustingProductId, setAdjustingProductId] = useState<string | null>(null);
+  const [adjustQuantity, setAdjustQuantity] = useState("12");
+  const [adjustNotice, setAdjustNotice] = useState("Restok mingguan");
+  const [notice, setNotice] = useState("");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  async function importProductsFile(file: File) {
+    try {
+      const rows = await parseImportFile(file);
+      if (!rows.length) {
+        setImportMessage("File tidak berisi data produk baru.");
+        return;
+      }
+
+      const existingCategories = new Map<string, string>(
+        categories.map((category) => [category.name.toLowerCase(), category.id]),
+      );
+      const newCategories: Category[] = [];
+      const additions: Product[] = rows.map((row, index) => {
+        const categoryKey = row.category.toLowerCase();
+        let categoryId: string | undefined = existingCategories.get(categoryKey);
+        if (!categoryId) {
+          categoryId = makeId("cat");
+          existingCategories.set(categoryKey, categoryId);
+          newCategories.push({
+            id: categoryId,
+            name: row.category.toUpperCase(),
+            description:
+              file.name.toLowerCase().endsWith(".csv")
+                ? "Hasil import CSV."
+                : "Hasil import spreadsheet.",
+          });
+        }
+        return {
+          id: row.id || makeId(`prd${index}`),
+          sku: slugify(row.name),
+          name: row.name,
+          categoryId,
+          netPrice: row.netPrice ? Math.round(row.netPrice) : undefined,
+          wholesalePrice: row.wholesalePrice ? Math.round(row.wholesalePrice) : undefined,
+          retailPrice: Math.round(row.retailPrice),
+          stock: 50,
+          lowStockThreshold: 12,
+        };
+      });
+
+      if (newCategories.length) {
+        setCategories((current) => [...current, ...newCategories]);
+      }
+      setProducts((current) => [...additions, ...current]);
+      setImportMessage(
+        `${additions.length} produk berhasil ditambahkan dari ${file.name}.`,
+      );
+    } catch (error) {
+      setImportMessage(
+        error instanceof Error ? error.message : "Import file gagal diproses.",
+      );
+    } finally {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  }
+
+  function handleImport(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    void importProductsFile(file);
+  }
+
+  function handleDragOver(event: DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+    setIsDragActive(true);
+  }
+
+  function handleDragLeave(event: DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+    setIsDragActive(false);
+  }
+
+  function handleDrop(event: DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+    setIsDragActive(false);
+    const file = event.dataTransfer.files?.[0];
+    if (!file) {
+      return;
+    }
+    void importProductsFile(file);
+  }
+
+  function saveCategory() {
+    if (!categoryName.trim()) return;
+    if (editingCategoryId) {
+      setCategories((current) =>
+        current.map((category) =>
+          category.id === editingCategoryId
+            ? { ...category, name: categoryName.trim().toUpperCase(), description: categoryDescription.trim() }
+            : category,
+        ),
+      );
+      setNotice("Kategori berhasil diperbarui.");
+    } else {
+      setCategories((current) => [
+        ...current,
+        {
+          id: makeId("cat"),
+          name: categoryName.trim().toUpperCase(),
+          description: categoryDescription.trim(),
+        },
+      ]);
+      setNotice("Kategori baru siap dipakai pada produk.");
+    }
+    setEditingCategoryId(null);
+  }
+
+  function startEdit(category: Category) {
+    setEditingCategoryId(category.id);
+    setCategoryName(category.name);
+    setCategoryDescription(category.description);
+    setTab("categories");
+  }
+
+  function applyStockAdjustment() {
+    if (!adjustingProductId) return;
+    const delta = Number.parseInt(adjustQuantity, 10);
+    if (Number.isNaN(delta)) return;
+    setProducts((current) =>
+      current.map((product) =>
+        product.id === adjustingProductId ? { ...product, stock: product.stock + delta } : product,
+      ),
+    );
+    setNotice(`Stok diperbarui: ${adjustNotice}.`);
+    setAdjustingProductId(null);
+  }
+
+  return (
+    <div className="page-stack">
+      <div className="tab-row">
+        <button
+          type="button"
+          className={`tab${tab === "import" ? " is-active" : ""}`}
+          onClick={() => setTab("import")}
+        >
+          Import Produk
+        </button>
+        <button
+          type="button"
+          className={`tab${tab === "categories" ? " is-active" : ""}`}
+          onClick={() => setTab("categories")}
+        >
+          Kategori
+        </button>
+        <button
+          type="button"
+          className={`tab${tab === "stock" ? " is-active" : ""}`}
+          onClick={() => setTab("stock")}
+        >
+          Stok
+        </button>
+      </div>
+
+      {tab === "import" ? (
+        <section className="panel">
+          <h1 className="page-heading">Import Produk</h1>
+          <p className="section-subtitle">
+            Upload file CSV atau Excel untuk menambahkan produk secara massal.
+          </p>
+          <label
+            className={`import-dropzone spacer-top${isDragActive ? " is-active" : ""}`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            <input
+              ref={fileInputRef}
+              hidden
+              type="file"
+              accept=".csv,.xlsx,.xls"
+              onChange={handleImport}
+            />
+            <span className="import-dropzone__eyebrow">Drag & Drop</span>
+            <span className="import-dropzone__title">
+              Tarik file `.csv` atau `.xlsx` ke sini
+            </span>
+            <span className="import-dropzone__copy">
+              Atau klik area ini untuk pilih file dari komputer. Template utama: `Name`, `Kriteria`, `Net Price`, `Grosir Price`, `Eceran Price`.
+            </span>
+            <span className="button button--primary">Choose File</span>
+          </label>
+          <div className="spacer-top cluster">
+            <span className="muted-text">{importMessage || "Belum ada file dipilih."}</span>
+          </div>
+          <p className="helper-copy spacer-top">
+            Format utama: `Name`, `Kriteria`, `Eceran Price`. Kolom `Net Price` dan `Grosir Price` juga didukung. Format lama `id`, `name`, `category`, `harga` tetap bisa dipakai.
+          </p>
+          <div className="spacer-top">
+            <h2 className="card-title" style={{ fontSize: 28 }}>
+              Daftar Produk ({products.length})
+            </h2>
+          </div>
+          <div className="table-shell spacer-top">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>SKU</th>
+                  <th>Nama</th>
+                  <th>Kategori</th>
+                  <th>Net Price</th>
+                  <th>Grosir Price</th>
+                  <th>Harga Retail</th>
+                  <th>Stok</th>
+                </tr>
+              </thead>
+              <tbody>
+                {products.slice(0, 10).map((product) => (
+                  <tr key={product.id}>
+                    <td className="mono">{product.sku}</td>
+                    <td>{product.name}</td>
+                    <td>{categories.find((category) => category.id === product.categoryId)?.name ?? "-"}</td>
+                    <td>{product.netPrice ? formatCurrency(product.netPrice) : "-"}</td>
+                    <td>{product.wholesalePrice ? formatCurrency(product.wholesalePrice) : "-"}</td>
+                    <td>{formatCurrency(product.retailPrice)}</td>
+                    <td>{product.stock}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
+
+      {tab === "categories" ? (
+        <section className="panel">
+          <div className="kpi-inline">
+            <div>
+              <h1 className="page-heading">Manajemen Kategori</h1>
+              <p className="section-subtitle">Tambah atau edit kategori produk.</p>
+            </div>
+            <button type="button" className="button button--primary" onClick={() => setEditingCategoryId(null)}>
+              Tambah Kategori
+            </button>
+          </div>
+          <section className="panel surface--soft spacer-top" id="category-form">
+            <h2 className="card-title" style={{ fontSize: 24 }}>
+              {editingCategoryId ? "Edit Kategori" : "Tambah Kategori Baru"}
+            </h2>
+            <div className="form-stack spacer-top">
+              <label className="field-group">
+                <span className="field-label">Nama Kategori</span>
+                <input
+                  className="field"
+                  type="text"
+                  value={categoryName}
+                  onChange={(event) => setCategoryName(event.target.value)}
+                />
+              </label>
+              <label className="field-group">
+                <span className="field-label">Deskripsi</span>
+                <textarea
+                  className="textarea-field"
+                  value={categoryDescription}
+                  onChange={(event) => setCategoryDescription(event.target.value)}
+                />
+              </label>
+              <div className="button-row">
+                <button type="button" className="button button--primary" onClick={saveCategory}>
+                  Simpan
+                </button>
+                <button type="button" className="button button--ghost" onClick={() => setEditingCategoryId(null)}>
+                  Batal
+                </button>
+              </div>
+            </div>
+          </section>
+          {notice ? <article className="notice notice--success spacer-top">{notice}</article> : null}
+          <div className="table-shell spacer-top">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Nama</th>
+                  <th>Deskripsi</th>
+                  <th>Jumlah Produk</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {categories.map((category) => (
+                  <tr key={category.id}>
+                    <td>{category.name}</td>
+                    <td>{category.description}</td>
+                    <td>{products.filter((product) => product.categoryId === category.id).length}</td>
+                    <td className="text-right">
+                      <button type="button" className="button button--ghost" onClick={() => startEdit(category)}>
+                        Edit
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
+
+      {tab === "stock" ? (
+        <section className="panel">
+          <h1 className="page-heading">Manajemen Stok</h1>
+          <p className="section-subtitle">Lihat dan sesuaikan stok produk.</p>
+          <div className="table-shell spacer-top">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>SKU</th>
+                  <th>Nama</th>
+                  <th>Stok Saat Ini</th>
+                  <th>Threshold</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {products.map((product) => (
+                  <tr key={product.id}>
+                    <td className="mono">{product.sku}</td>
+                    <td>{product.name}</td>
+                    <td>{product.stock}</td>
+                    <td>{product.lowStockThreshold}</td>
+                    <td className="text-right">
+                      <button
+                        type="button"
+                        className="button button--ghost"
+                        onClick={() => setAdjustingProductId(product.id)}
+                      >
+                        Sesuaikan
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {adjustingProductId ? (
+            <section className="panel surface--soft spacer-top">
+              <h2 className="card-title" style={{ fontSize: 24 }}>
+                Sesuaikan Stok
+              </h2>
+              <div className="form-stack spacer-top">
+                <label className="field-group">
+                  <span className="field-label">Jumlah (positif / negatif)</span>
+                  <input
+                    className="field"
+                    value={adjustQuantity}
+                    onChange={(event) => setAdjustQuantity(event.target.value)}
+                  />
+                </label>
+                <label className="field-group">
+                  <span className="field-label">Catatan</span>
+                  <input
+                    className="field"
+                    value={adjustNotice}
+                    onChange={(event) => setAdjustNotice(event.target.value)}
+                  />
+                </label>
+                <div className="button-row">
+                  <button type="button" className="button button--primary" onClick={applyStockAdjustment}>
+                    Simpan Stok
+                  </button>
+                  <button
+                    type="button"
+                    className="button button--ghost"
+                    onClick={() => setAdjustingProductId(null)}
+                  >
+                    Batal
+                  </button>
+                </div>
+              </div>
+            </section>
+          ) : null}
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
+function RefundsRoute() {
+  const [selectedSaleId, setSelectedSaleId] = useState<string>("sale-1049");
+  const pageClass = selectedSaleId ? "refunds-selected-page" : "refunds-empty-page";
+
+  return (
+    <ProtectedPage title="Refund" pageClass={pageClass}>
+      <RefundsPage selectedSaleId={selectedSaleId} setSelectedSaleId={setSelectedSaleId} />
+    </ProtectedPage>
+  );
+}
+
+function RefundsPage({
+  selectedSaleId,
+  setSelectedSaleId,
+}: {
+  selectedSaleId: string | null;
+  setSelectedSaleId: (value: string | null) => void;
+}) {
+  const { sales, products, setProducts, refunds, setRefunds } = useAppModel();
+  const [search, setSearch] = useState("");
+  const [reason, setReason] = useState("Keluhan pelanggan");
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [notice, setNotice] = useState("");
+
+  const filteredSales = sales.filter((sale) => {
+    const query = search.trim().toLowerCase();
+    if (!query) return true;
+    return (
+      sale.receiptNumber.toLowerCase().includes(query) ||
+      sale.customerName.toLowerCase().includes(query)
+    );
+  });
+
+  const selectedSale = sales.find((sale) => sale.id === selectedSaleId) ?? null;
+
+  function processRefund() {
+    if (!selectedSale) return;
+    const refundItems = selectedSale.items.filter((item) => (quantities[item.productId] ?? 0) > 0);
+    if (!refundItems.length) return;
+    const total = refundItems.reduce(
+      (sum, item) => sum + item.unitPrice * (quantities[item.productId] ?? 0),
+      0,
+    );
+    setProducts((current) =>
+      current.map((product) => {
+        const quantity = quantities[product.id] ?? 0;
+        return quantity > 0 ? { ...product, stock: product.stock + quantity } : product;
+      }),
+    );
+    setRefunds((current) => [
+      {
+        id: makeId("refund"),
+        saleId: selectedSale.id,
+        saleReceiptNumber: selectedSale.receiptNumber,
+        customerName: selectedSale.customerName,
+        reason,
+        total,
+        createdAt: new Date().toISOString(),
+      },
+      ...current,
+    ]);
+    setNotice("Refund berhasil - pengembalian dana telah diproses.");
+  }
+
+  return (
+    <div className="page-stack">
+      <section className="panel">
+        <h1 className="page-heading">Pencarian Refund</h1>
+        <p className="section-subtitle">
+          Refund dibatasi oleh jendela waktu yang ditentukan dan dilacak ke struk asli.
+        </p>
+        <label className="field-group spacer-top">
+          <span className="field-label">Cari berdasarkan struk atau pelanggan</span>
+          <input
+            className="field"
+            type="text"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </label>
+        <div className="table-shell spacer-top">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Struk</th>
+                <th>Pelanggan</th>
+                <th>Total</th>
+                <th>Waktu</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredSales.slice(0, 6).map((sale) => (
+                <tr key={sale.id}>
+                  <td>{sale.receiptNumber}</td>
+                  <td>{sale.customerName}</td>
+                  <td>{formatCurrency(sale.total)}</td>
+                  <td>{formatShortDate(sale.createdAt)}</td>
+                  <td className="text-right">
+                    <button
+                      type="button"
+                      className="button button--ghost"
+                      onClick={() => setSelectedSaleId(sale.id)}
+                    >
+                      Pilih
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section className="panel">
+        <h2 className="card-title" style={{ fontSize: 30 }}>
+          Form Refund
+        </h2>
+        <p className="section-subtitle">
+          Pilih kuantitas per item lalu kirim sebagai satu catatan refund.
+        </p>
+        {selectedSale ? (
+          <>
+            <div className="table-shell spacer-top">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Item</th>
+                    <th>Qty Terjual</th>
+                    <th>Qty Refund</th>
+                    <th>Harga Satuan</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedSale.items.map((item) => (
+                    <tr key={item.productId}>
+                      <td>{item.productName}</td>
+                      <td>{item.quantity}</td>
+                      <td>
+                        <div className="qty-stepper">
+                          <button
+                            type="button"
+                            className="qty-stepper__button"
+                            onClick={() =>
+                              setQuantities((current) => ({
+                                ...current,
+                                [item.productId]: Math.max((current[item.productId] ?? 0) - 1, 0),
+                              }))
+                            }
+                          >
+                            -
+                          </button>
+                          <span className="qty-stepper__value">{quantities[item.productId] ?? 0}</span>
+                          <button
+                            type="button"
+                            className="qty-stepper__button"
+                            onClick={() =>
+                              setQuantities((current) => ({
+                                ...current,
+                                [item.productId]: Math.min(
+                                  (current[item.productId] ?? 0) + 1,
+                                  item.quantity,
+                                ),
+                              }))
+                            }
+                          >
+                            +
+                          </button>
+                        </div>
+                      </td>
+                      <td>{formatCurrency(item.unitPrice)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="form-stack spacer-top">
+              <label className="field-group">
+                <span className="field-label">Alasan Refund</span>
+                <textarea
+                  className="textarea-field"
+                  value={reason}
+                  onChange={(event) => setReason(event.target.value)}
+                />
+              </label>
+              <button type="button" className="button button--primary" onClick={processRefund}>
+                Proses Refund
+              </button>
+              {notice ? <article className="notice notice--success">{notice}</article> : null}
+              {refunds.length ? (
+                <article className="notice notice--success">
+                  Refund terakhir: {refunds[0].saleReceiptNumber} - {formatCurrency(refunds[0].total)}
+                </article>
+              ) : null}
+            </div>
+          </>
+        ) : (
+          <div className="empty-state spacer-top">
+            <h3 className="empty-state__title">Pilih transaksi lebih dulu</h3>
+            <p className="empty-state__copy">Form refund akan aktif setelah sale dipilih.</p>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function ReportsRoute() {
+  const [generated, setGenerated] = useState(false);
+  return (
+    <ProtectedPage
+      title="Laporan"
+      pageClass={generated ? "reports-generated-page" : "reports-default-page"}
+    >
+      <ReportsPage generated={generated} setGenerated={setGenerated} />
+    </ProtectedPage>
+  );
+}
+
+function ReportsPage({
+  generated,
+  setGenerated,
+}: {
+  generated: boolean;
+  setGenerated: (value: boolean) => void;
+}) {
+  const { sales, refunds, reports, setReports } = useAppModel();
+  const [periodStart, setPeriodStart] = useState("2026-03-01");
+  const [periodEnd, setPeriodEnd] = useState("2026-03-31");
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const salesTotal = sales.reduce((total, sale) => total + sale.total, 0);
+  const refundTotal = refunds.reduce((total, refund) => total + refund.total, 0);
+  const saleShareCount = sales.filter((sale) => Boolean(sale.customerPhone)).length;
+  const shareRate = sales.length ? Math.round((saleShareCount / sales.length) * 100) : 0;
+  const stockMovement = sales.reduce(
+    (total, sale) => total + sale.items.reduce((sum, item) => sum + item.quantity, 0),
+    0,
+  );
+
+  const topProductCounts: Record<string, number> = {};
+  sales.forEach((sale) => {
+    sale.items.forEach((item) => {
+      topProductCounts[item.productName] = (topProductCounts[item.productName] ?? 0) + item.quantity;
+    });
+  });
+  const topProducts = Object.entries(topProductCounts)
+    .sort((left, right) => right[1] - left[1])
+    .slice(0, 3);
+  const topProduct = topProducts[0]?.[0] ?? "SEDAAP MIE GR 91GR (40)";
+
+  function generateReport() {
+    setIsGenerating(true);
+    window.setTimeout(() => {
+      setIsGenerating(false);
+      setGenerated(true);
+      setReports((current) => [
+        {
+          id: makeId("report"),
+          createdAt: new Date().toISOString(),
+          periodStart,
+          periodEnd,
+          salesTotal,
+          refundTotal,
+          topProduct,
+        },
+        ...current,
+      ]);
+    }, 1200);
+  }
+
+  return (
+    <div className="page-stack">
+      <section className="panel">
+        <h1 className="page-heading">Kontrol Periode</h1>
+        <p className="section-subtitle">
+          Buat snapshot laporan atau perkiraan dari rentang waktu yang dipilih.
+        </p>
+        <div className="four-col spacer-top">
+          <label className="field-group">
+            <span className="field-label">Tanggal mulai</span>
+            <input
+              className="field"
+              type="text"
+              value={periodStart}
+              onChange={(event) => setPeriodStart(event.target.value)}
+            />
+          </label>
+          <label className="field-group">
+            <span className="field-label">Tanggal selesai</span>
+            <input
+              className="field"
+              type="text"
+              value={periodEnd}
+              onChange={(event) => setPeriodEnd(event.target.value)}
+            />
+          </label>
+          <div className="field-group">
+            <span className="field-label">&nbsp;</span>
+            <button
+              type="button"
+              className="button button--primary button--full"
+              onClick={generateReport}
+            >
+              {isGenerating ? "Membuat laporan..." : "Generate Laporan Bulanan"}
+            </button>
+          </div>
+          <div className="field-group">
+            <span className="field-label">&nbsp;</span>
+            <span className="button button--secondary button--full">Buat Perkiraan</span>
+          </div>
+        </div>
+      </section>
+      <section className="stat-grid">
+        <article className="stat-card surface--accent">
+          <div className="stat-label">Total Penjualan</div>
+          <div className="stat-value">{formatCurrency(salesTotal)}</div>
+        </article>
+        <article className="stat-card surface">
+          <div className="stat-label">Total Refund</div>
+          <div className="stat-value">{formatCurrency(refundTotal)}</div>
+        </article>
+        <article className="stat-card surface">
+          <div className="stat-label">Jumlah Transaksi</div>
+          <div className="stat-value">{sales.length}</div>
+        </article>
+        <article className="stat-card surface">
+          <div className="stat-label">Pergerakan Stok</div>
+          <div className="stat-value">{stockMovement}</div>
+        </article>
+      </section>
+      <section className="stat-grid stat-grid--three">
+        <article className="stat-card surface">
+          <div className="stat-label">Sales Selesai</div>
+          <div className="stat-value">{sales.length}</div>
+        </article>
+        <article className="stat-card surface--accent">
+          <div className="stat-label">Struk Dibagikan</div>
+          <div className="stat-value">{saleShareCount}</div>
+        </article>
+        <article className="stat-card surface">
+          <div className="stat-label">Share Rate Struk</div>
+          <div className="stat-value">{shareRate}%</div>
+        </article>
+      </section>
+      {generated ? (
+        <section className="panel surface--accent">
+          <h2 className="card-title" style={{ fontSize: 28 }}>
+            Laporan Berhasil Dibuat
+          </h2>
+          <div className="two-col spacer-top">
+            <article className="summary-box surface">
+              <div className="stat-label">Periode</div>
+              <div className="card-copy">
+                {periodStart} s/d {periodEnd}
+              </div>
+            </article>
+            <article className="summary-box surface">
+              <div className="stat-label">Total Penjualan</div>
+              <div className="small-value" style={{ color: "var(--color-primary)" }}>
+                {formatCurrency(salesTotal)}
+              </div>
+            </article>
+          </div>
+          <div className="spacer-top">
+            <button type="button" className="button button--primary" onClick={() => setGenerated(false)}>
+              Simpan Laporan
+            </button>
+          </div>
+        </section>
+      ) : null}
+      <section className="panel">
+        <h2 className="card-title" style={{ fontSize: 28 }}>
+          Snapshot Laporan Tersimpan
+        </h2>
+        <div className="table-shell spacer-top">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Dibuat</th>
+                <th>Mulai</th>
+                <th>Selesai</th>
+                <th>Penjualan</th>
+                <th>Refund</th>
+                <th>Produk Terlaris</th>
+              </tr>
+            </thead>
+            <tbody>
+              {reports.map((report) => (
+                <tr key={report.id}>
+                  <td>{formatShortDate(report.createdAt)}</td>
+                  <td>{report.periodStart}</td>
+                  <td>{report.periodEnd}</td>
+                  <td>{formatCurrency(report.salesTotal)}</td>
+                  <td>{formatCurrency(report.refundTotal)}</td>
+                  <td>{report.topProduct}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section className="panel">
+        <h2 className="card-title" style={{ fontSize: 28 }}>
+          Snapshot Perkiraan
+        </h2>
+        <div className="table-shell spacer-top">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Dibuat</th>
+                <th>Produk</th>
+                <th>Rata-rata Penjualan Harian</th>
+                <th>Saran Restok</th>
+              </tr>
+            </thead>
+            <tbody>
+              {topProducts.map(([productName, quantity]) => (
+                <tr key={productName}>
+                  <td>{formatShortDate(new Date().toISOString())}</td>
+                  <td>{productName}</td>
+                  <td>{(quantity / 30).toFixed(1)}</td>
+                  <td>{Math.ceil(quantity * 2.5)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/transactions" element={<TransactionsRoute />} />
+      <Route path="/products" element={<ProductsRoute />} />
+      <Route path="/refunds" element={<RefundsRoute />} />
+      <Route path="/reports" element={<ReportsRoute />} />
+      <Route path="/" element={<Navigate to="/transactions" replace />} />
+      <Route path="*" element={<Navigate to="/transactions" replace />} />
+    </Routes>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppProvider>
+        <AppRoutes />
+      </AppProvider>
+    </BrowserRouter>
   );
 }

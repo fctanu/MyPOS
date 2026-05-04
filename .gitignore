@@ -2,6 +2,7 @@ node_modules/
 dist/
 *.log
 *.tsbuildinfo
+.vscode/
 .edge-headless*/
 *.zip
 ABAD POS.pdf

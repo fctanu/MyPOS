@@ -1,6 +1,167 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-@import "tailwindcss";
+@import "../html-css-version/css/base.css";
 
-@theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  min-width: 320px;
+  background: var(--color-canvas);
+}
+
+button {
+  cursor: pointer;
+}
+
+.login-page .login-card {
+  max-width: 448px;
+}
+
+.login-page .form-stack {
+  margin-top: 24px;
+}
+
+.transactions-order-expanded-page .product-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.transactions-order-collapsed-page .product-grid--wide {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.role-card,
+.product-card,
+.chip,
+.tab,
+.button,
+.qty-stepper__button,
+.sidebar__toggle,
+.nav-link {
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+}
+
+.role-card:hover,
+.product-card:hover,
+.chip:hover,
+.tab:hover,
+.button:hover,
+.qty-stepper__button:hover,
+.sidebar__toggle:hover,
+.nav-link:hover {
+  transform: translateY(-1px);
+}
+
+.role-card,
+.product-card,
+.chip,
+.tab,
+.button,
+.qty-stepper__button,
+.sidebar__toggle,
+.nav-link,
+.field,
+.select-field,
+.textarea-field {
+  border: 0;
+}
+
+.role-card {
+  text-align: left;
+  background: var(--color-white);
+}
+
+.product-card {
+  width: 100%;
+  text-align: left;
+}
+
+.chip,
+.tab,
+.button,
+.qty-stepper__button,
+.sidebar__toggle {
+  appearance: none;
+}
+
+.button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.qty-stepper__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.field,
+.select-field,
+.textarea-field {
+  outline: none;
+}
+
+.field:focus,
+.select-field:focus,
+.textarea-field:focus {
+  box-shadow: 0 0 0 3px rgba(0, 86, 210, 0.14);
+}
+
+.nav-link,
+.button,
+.tab,
+.chip {
+  text-decoration: none;
+}
+
+.import-dropzone {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  padding: 24px;
+  border: 2px dashed rgba(0, 86, 210, 0.22);
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(0, 86, 210, 0.04), rgba(255, 255, 255, 0.92));
+  cursor: pointer;
+}
+
+.import-dropzone.is-active {
+  border-color: var(--color-primary);
+  background: linear-gradient(180deg, rgba(0, 86, 210, 0.1), rgba(255, 255, 255, 0.96));
+  box-shadow: 0 18px 40px -28px rgba(0, 86, 210, 0.55);
+}
+
+.import-dropzone__eyebrow {
+  color: var(--color-primary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.import-dropzone__title {
+  font-family: var(--font-display);
+  font-size: 24px;
+  line-height: 1.15;
+  font-weight: 700;
+}
+
+.import-dropzone__copy {
+  color: var(--color-muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+@media (max-width: 1180px) {
+  .transactions-order-expanded-page .product-grid,
+  .transactions-order-collapsed-page .product-grid--wide {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
