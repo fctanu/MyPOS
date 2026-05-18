@@ -133,154 +133,136 @@ const categoriesSeed: Category[] = [
   },
   { id: "kopi", name: "KOPI & TEH", description: "Coffee, tea, and warm drinks." },
   { id: "snack", name: "SNACK", description: "Biscuits, chips, wafers, and cashier snacks." },
+  { id: "sabun", name: "SABUN & DETERJEN", description: "Soap, detergent, and household cleaning items." },
+  { id: "gula", name: "GULA TEPUNG", description: "Sugar, flour, and baking staples." },
+  { id: "kesehatan", name: "KESEHATAN", description: "Health, medicine, and personal care items." },
+  { id: "dessert", name: "DESSERT", description: "Dessert mixes and jelly products." },
 ];
 
-const productsSeed: Product[] = [
-  {
-    id: "prd-1",
-    sku: "SEDAAP-MIE-GR-91GR-40",
-    name: "SEDAAP MIE GR 91GR (40)",
-    categoryId: "mie",
-    retailPrice: 3500,
-    stock: 128,
-    lowStockThreshold: 24,
-  },
-  {
-    id: "prd-2",
-    sku: "SEDAAP-MIE-KARI-SPESIAL",
-    name: "SEDAAP MIE KARI SPESIAL 75GR (40)",
-    categoryId: "mie",
-    retailPrice: 3250,
-    stock: 131,
-    lowStockThreshold: 24,
-  },
-  {
-    id: "prd-3",
-    sku: "SEDAAP-MIE-KOREAN-SPICY",
-    name: "SEDAAP MIE KOREAN SPICY 87GR (40)",
-    categoryId: "mie",
-    retailPrice: 3500,
-    stock: 109,
-    lowStockThreshold: 20,
-  },
-  {
-    id: "prd-4",
-    sku: "MIE-BAKSO-SUPER",
-    name: "MIE BAKSO SUPER",
-    categoryId: "mie",
-    retailPrice: 3600,
-    stock: 125,
-    lowStockThreshold: 18,
-  },
-  {
-    id: "prd-5",
-    sku: "MIE-INSTAN-INTERMI-40",
-    name: "MIE INSTAN INTERMI (40)",
-    categoryId: "mie",
-    retailPrice: 1500,
-    stock: 38,
-    lowStockThreshold: 15,
-  },
-  {
-    id: "prd-6",
-    sku: "MIE-KUDA-MENJANGAN",
-    name: "MIE KUDA MENJANGAN",
-    categoryId: "mie",
-    retailPrice: 41000,
-    stock: 93,
-    lowStockThreshold: 10,
-  },
-  {
-    id: "prd-7",
-    sku: "MIE-TELOR-3-AYAM",
-    name: "MIE TELOR 3 AYAM",
-    categoryId: "mie",
-    retailPrice: 6200,
-    stock: 62,
-    lowStockThreshold: 14,
-  },
-  {
-    id: "prd-8",
-    sku: "BIHUN-BERAS-350GR",
-    name: "BIHUN BERAS 350GR",
-    categoryId: "mie",
-    retailPrice: 9800,
-    stock: 58,
-    lowStockThreshold: 12,
-  },
-  {
-    id: "prd-9",
-    sku: "RIMBA",
-    name: "RIMBA",
-    categoryId: "bumbu",
-    retailPrice: 10000,
-    stock: 76,
-    lowStockThreshold: 16,
-  },
-  {
-    id: "prd-10",
-    sku: "TAWON",
-    name: "TAWON",
-    categoryId: "bumbu",
-    retailPrice: 15000,
-    stock: 104,
-    lowStockThreshold: 20,
-  },
-  {
-    id: "prd-11",
-    sku: "BENDERA-KALENG",
-    name: "BENDERA KALENG",
-    categoryId: "minuman",
-    retailPrice: 12000,
-    stock: 95,
-    lowStockThreshold: 16,
-  },
-  {
-    id: "prd-12",
-    sku: "INDOMILK-KALENG-PUTIH",
-    name: "INDOMILK KALENG PUTIH",
-    categoryId: "minuman",
-    retailPrice: 12000,
-    stock: 117,
-    lowStockThreshold: 18,
-  },
-  {
-    id: "prd-13",
-    sku: "OMELA-BESAR",
-    name: "OMELA BESAR",
-    categoryId: "minuman",
-    retailPrice: 12500,
-    stock: 153,
-    lowStockThreshold: 18,
-  },
-  {
-    id: "prd-14",
-    sku: "KAPAL-API-MIX",
-    name: "KAPAL API MIX",
-    categoryId: "kopi",
-    retailPrice: 2500,
-    stock: 148,
-    lowStockThreshold: 30,
-  },
-  {
-    id: "prd-15",
-    sku: "TEH-PUCUK",
-    name: "TEH PUCUK",
-    categoryId: "kopi",
-    retailPrice: 5500,
-    stock: 89,
-    lowStockThreshold: 20,
-  },
-  {
-    id: "prd-16",
-    sku: "ROMA-KELAPA",
-    name: "ROMA KELAPA",
-    categoryId: "snack",
-    retailPrice: 9000,
-    stock: 72,
-    lowStockThreshold: 18,
-  },
+const categoryIdBySeedName: Record<string, string> = {
+  "MIE": "mie",
+  "BUMBU MASAKAN": "bumbu",
+  "SUSU & MINUMAN": "minuman",
+  "KOPI & TEH": "kopi",
+  "SNACK": "snack",
+  "SABUN & DETERJEN": "sabun",
+  "GULA TEPUNG": "gula",
+  "KESEHATAN": "kesehatan",
+  "DESSERT": "dessert",
+};
+
+type ProductSeedRow = readonly [
+  id: number,
+  name: string,
+  category: string,
+  netPrice: number,
+  wholesalePrice: number,
+  retailPrice: number,
 ];
+
+const productSeedRows: ProductSeedRow[] = [
+  [1, "MIE NYONYA", "MIE", 0, 30000, 0],
+  [2, "MIE PALEM", "MIE", 0, 100000, 0],
+  [3, "MIE BAKSO", "MIE", 0, 134500, 0],
+  [4, "MIE DARA", "MIE", 1000, 135500, 1000],
+  [5, "SEDAAP MIE GR 91GR (40)", "MIE", 109000, 3000, 3500],
+  [6, "SEDAAP MIE KARI SPESIAL 75GR (40)", "MIE", 105500, 2900, 3250],
+  [7, "SEDAAP MIE KOREAN SPICY 87GR (40)", "MIE", 109150, 3000, 3500],
+  [8, "SEDAAP MIE", "MIE", 109150, 3000, 3500],
+  [9, "MIE BAKSO SUPER", "MIE", 34500, 35500, 36000],
+  [10, "MIE INSTAN INTERMI (40)", "MIE", 51000, 52500, 1500],
+  [11, "MIE KUDA MENJANGAN", "MIE", 0, 41000, 0],
+  [12, "RIMBA", "BUMBU MASAKAN", 9420, 9750, 10000],
+  [13, "TAWON", "BUMBU MASAKAN", 0, 15000, 0],
+  [14, "DORANG", "BUMBU MASAKAN", 0, 18000, 0],
+  [15, "BANGAU", "BUMBU MASAKAN", 0, 10000, 0],
+  [16, "KECAP MANIS", "BUMBU MASAKAN", 58700, 1350, 1500],
+  [17, "TAWON B", "BUMBU MASAKAN", 0, 16500, 0],
+  [18, "BENDERA", "SUSU & MINUMAN", 0, 8000, 0],
+  [19, "BENDERA KALENG", "SUSU & MINUMAN", 0, 12000, 0],
+  [20, "INDOMILK KALENG PUTIH", "SUSU & MINUMAN", 81144, 82500, 3500],
+  [21, "INDOMILK", "SUSU & MINUMAN", 0, 12000, 0],
+  [22, "OMELA KECIL", "SUSU & MINUMAN", 0, 10000, 0],
+  [23, "OMELA BESAR", "SUSU & MINUMAN", 0, 12500, 0],
+  [24, "DANCOW", "SUSU & MINUMAN", 0, 35500, 0],
+  [25, "MILO", "SUSU & MINUMAN", 0, 18500, 0],
+  [26, "CARNATION", "SUSU & MINUMAN", 14000, 14500, 14500],
+  [27, "ENERGEN", "SUSU & MINUMAN", 0, 19000, 0],
+  [28, "GIV", "SABUN & DETERJEN", 0, 2700, 0],
+  [29, "GENTLE", "SABUN & DETERJEN", 0, 10000, 0],
+  [30, "RINSO 100", "SABUN & DETERJEN", 90000, 10000, 0],
+  [31, "RINSO 500", "SABUN & DETERJEN", 0, 4500, 0],
+  [32, "SITRUN", "SABUN & DETERJEN", 0, 40000, 0],
+  [33, "DAIA 1000", "SABUN & DETERJEN", 0, 10000, 0],
+  [34, "POWDET B", "SABUN & DETERJEN", 99300, 100000, 3500],
+  [35, "SABUN JAZ", "SABUN & DETERJEN", 181100, 15500, 16000],
+  [36, "SABUN JAZ", "SABUN & DETERJEN", 110000, 115000, 120000],
+  [37, "GULA RA", "GULA TEPUNG", 0, 15300, 0],
+  [38, "KODOK", "GULA TEPUNG", 195000, 205000, 0],
+  [39, "PAYUNG", "GULA TEPUNG", 0, 168000, 0],
+  [40, "CAKRA", "GULA TEPUNG", 0, 215000, 0],
+  [41, "SEGITIGA BIRU", "GULA TEPUNG", 0, 211000, 0],
+  [42, "GULA LOS", "GULA TEPUNG", 0, 15700, 15700],
+  [43, "LENCANA", "GULA TEPUNG", 0, 171000, 0],
+  [44, "TRIGU", "GULA TEPUNG", 0, 0, 7000],
+  [45, "MIWON 100", "BUMBU MASAKAN", 0, 21000, 0],
+  [46, "MIWON 1", "BUMBU MASAKAN", 0, 54000, 0],
+  [47, "MIWON 1", "BUMBU MASAKAN", 0, 110000, 0],
+  [48, "LADAKU", "BUMBU MASAKAN", 999999, 10000, 0],
+  [49, "ROYCO 22", "BUMBU MASAKAN", 197000, 0, 0],
+  [50, "ROYCO", "BUMBU MASAKAN", 0, 4750, 0],
+  [51, "MASAKO", "BUMBU MASAKAN", 0, 4750, 0],
+  [52, "GROSOK", "BUMBU MASAKAN", 26350, 27500, 29000],
+  [53, "CERDIK HA", "BUMBU MASAKAN", 28500, 31500, 32500],
+  [54, "MINYAK K", "BUMBU MASAKAN", 0, 21000, 0],
+  [55, "SANCO 1 L", "BUMBU MASAKAN", 239000, 21000, 21000],
+  [56, "MINYAK B", "BUMBU MASAKAN", 0, 18500, 19500],
+  [57, "TOP PLUS", "KOPI & TEH", 85000, 95000, 9000],
+  [58, "KAPAL API", "KOPI & TEH", 0, 0, 0],
+  [59, "KAPAL API", "KOPI & TEH", 0, 0, 9500],
+  [60, "TEH NAGA", "KOPI & TEH", 0, 19000, 0],
+  [61, "TEH 999", "KOPI & TEH", 0, 0, 0],
+  [62, "ANGET SARI", "KOPI & TEH", 270500, 14000, 15000],
+  [63, "NUTRIJELL", "DESSERT", 1670, 20000, 2200],
+  [64, "NUTRIJELL", "DESSERT", 1670, 20000, 2200],
+  [65, "NUTRIJELL", "DESSERT", 1670, 20000, 2200],
+  [66, "NUTRIJELL", "DESSERT", 1670, 20000, 2200],
+  [67, "NUTRIJELL", "DESSERT", 1670, 20000, 2200],
+  [68, "NUTRIJELL", "DESSERT", 2431, 29200, 30000],
+  [69, "TEH GOPE", "KOPI & TEH", 0, 0, 0],
+  [70, "KAPAL API", "KOPI & TEH", 0, 0, 0],
+  [71, "TOLAK ANGIN", "KESEHATAN", 0, 46000, 0],
+  [72, "DECOLGEN", "KESEHATAN", 0, 0, 3000],
+  [73, "BISKUIT RO", "SNACK", 8125, 8750, 0],
+  [74, "ROMA SARI", "SNACK", 0, 0, 0],
+  [75, "CRISPY CR", "SNACK", 94500, 9750, 10000],
+  [76, "COCOLATOS", "SNACK", 155000, 20500, 21000],
+  [77, "COCOLATOS", "SNACK", 155000, 20500, 21000],
+  [78, "POWDET B", "SABUN & DETERJEN", 99300, 100000, 3500],
+  [79, "JOLLY FAC", "KESEHATAN", 328000, 84000, 85000],
+  [80, "PASEO SM", "KESEHATAN", 423601, 9000, 9500],
+  [81, "CHARM EX", "KESEHATAN", 262429, 12000, 13000],
+  [82, "CHARM EX", "KESEHATAN", 329474, 14500, 15000],
+  [83, "CHARM EX", "KESEHATAN", 59164, 19500, 20000],
+  [84, "CHARM EX", "KESEHATAN", 1550, 1750, 2000],
+  [85, "CHARM EX", "KESEHATAN", 1900, 2250, 2500],
+  [86, "CHARM EX", "KESEHATAN", 2250, 2500, 2900],
+  [87, "SUSEMI SA", "SABUN & DETERJEN", 1300, 1500, 1750],
+];
+
+const productsSeed: Product[] = productSeedRows.map(
+  ([id, name, category, netPrice, wholesalePrice, retailPrice]) => ({
+    id: `prd-${id}`,
+    sku: `${slugify(name)}-${id}`,
+    name,
+    categoryId: categoryIdBySeedName[category] ?? "bumbu",
+    netPrice: netPrice > 0 ? netPrice : undefined,
+    wholesalePrice: wholesalePrice > 0 ? wholesalePrice : undefined,
+    retailPrice: retailPrice > 0 ? retailPrice : wholesalePrice > 0 ? wholesalePrice : netPrice,
+    stock: 50 + ((id * 17) % 120),
+    lowStockThreshold: 12,
+  }),
+);
 
 const customersSeed: Customer[] = [
   {
@@ -968,15 +950,17 @@ function ProtectedPage({
                 </span>
                 <span className="nav-link__label">Produk</span>
               </NavLink>
-              <NavLink
-                to="/reports"
-                className={({ isActive }) => `nav-link${isActive ? " is-active" : ""}`}
-              >
-                <span className="nav-link__icon">
-                  <ChartIcon />
-                </span>
-                <span className="nav-link__label">Laporan</span>
-              </NavLink>
+              {session.role === "owner" ? (
+                <NavLink
+                  to="/reports"
+                  className={({ isActive }) => `nav-link${isActive ? " is-active" : ""}`}
+                >
+                  <span className="nav-link__icon">
+                    <ChartIcon />
+                  </span>
+                  <span className="nav-link__label">Laporan</span>
+                </NavLink>
+              ) : null}
             </div>
           </nav>
           <div className="sidebar__divider" />
@@ -1046,7 +1030,7 @@ function LoginPage() {
             >
               <h2 className="role-card__title">Karyawan</h2>
               <p className="role-card__copy">
-                Akses ke transaksi, refund, produk, dan laporan.
+                Akses ke transaksi, refund, dan produk.
               </p>
             </button>
             <button
@@ -1142,11 +1126,7 @@ function TransactionsPage({
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>("cus-1");
   const [productQuery, setProductQuery] = useState("");
   const [activeCategoryId, setActiveCategoryId] = useState<string>("all");
-  const [cart, setCart] = useState<CartLine[]>([
-    { productId: "prd-1", quantity: 4 },
-    { productId: "prd-4", quantity: 3 },
-    { productId: "prd-5", quantity: 5 },
-  ]);
+  const [cart, setCart] = useState<CartLine[]>([]);
   const [usePoints, setUsePoints] = useState(true);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [completedSale, setCompletedSale] = useState<Sale | null>(null);
@@ -1215,7 +1195,35 @@ function TransactionsPage({
   const finalTotal = Math.max(subtotal - pointsUsed, 0);
   const pointsEarned = Math.floor(subtotal * 0.01);
 
+  function restoreCartStock(lines: CartLine[]) {
+    if (!lines.length) {
+      return;
+    }
+
+    setProducts((current) =>
+      current.map((product) => {
+        const cartLine = lines.find((line) => line.productId === product.id);
+        return cartLine ? { ...product, stock: product.stock + cartLine.quantity } : product;
+      }),
+    );
+  }
+
+  function clearCart() {
+    restoreCartStock(cart);
+    setCart([]);
+  }
+
   function addToCart(productId: string) {
+    const product = products.find((entry) => entry.id === productId);
+    if (!product || product.stock <= 0) {
+      return;
+    }
+
+    setProducts((current) =>
+      current.map((entry) =>
+        entry.id === productId ? { ...entry, stock: Math.max(entry.stock - 1, 0) } : entry,
+      ),
+    );
     setCart((current) => {
       const existing = current.find((line) => line.productId === productId);
       if (!existing) {
@@ -1230,6 +1238,27 @@ function TransactionsPage({
   }
 
   function updateQuantity(productId: string, nextQuantity: number) {
+    const currentLine = cart.find((line) => line.productId === productId);
+    const currentQuantity = currentLine?.quantity ?? 0;
+    const delta = nextQuantity - currentQuantity;
+
+    if (delta > 0) {
+      const product = products.find((entry) => entry.id === productId);
+      if (!product || product.stock < delta) {
+        return;
+      }
+    }
+
+    if (delta !== 0) {
+      setProducts((current) =>
+        current.map((product) =>
+          product.id === productId
+            ? { ...product, stock: Math.max(product.stock - delta, 0) }
+            : product,
+        ),
+      );
+    }
+
     if (nextQuantity <= 0) {
       setCart((current) => current.filter((line) => line.productId !== productId));
       return;
@@ -1296,13 +1325,6 @@ function TransactionsPage({
       pointsEarned,
     };
 
-    setProducts((current) =>
-      current.map((product) => {
-        const sold = cart.find((line) => line.productId === product.id);
-        return sold ? { ...product, stock: Math.max(product.stock - sold.quantity, 0) } : product;
-      }),
-    );
-
     if (selectedCustomer) {
       setCustomers((current) =>
         current.map((customer) =>
@@ -1326,6 +1348,7 @@ function TransactionsPage({
     setSales((current) => [sale, ...current]);
     setCompletedSale(sale);
     setPrintStatus("");
+    setCart([]);
     setStep("receipt");
   }
 
@@ -1335,11 +1358,8 @@ function TransactionsPage({
     setSelectedCustomerId("cus-1");
     setProductQuery("");
     setActiveCategoryId("all");
-    setCart([
-      { productId: "prd-1", quantity: 4 },
-      { productId: "prd-4", quantity: 3 },
-      { productId: "prd-5", quantity: 5 },
-    ]);
+    restoreCartStock(cart);
+    setCart([]);
     setUsePoints(true);
     setPaymentMethod("cash");
     setCompletedSale(null);
@@ -1657,16 +1677,10 @@ function TransactionsPage({
                 <p className="card-subtitle">Pelanggan umum · tanpa poin loyalitas</p>
               )}
             </div>
-            <div className="stats-pair">
-              <article className="metric-tile metric-tile--light">
-                <div className="metric-kicker">Produk</div>
-                <div className="metric-number">{filteredProducts.length}</div>
-                <div className="metric-status">Ready</div>
-              </article>
+            <div className="stats-pair stats-pair--single">
               <article className="metric-tile metric-tile--dark">
                 <div className="metric-kicker">Keranjang</div>
                 <div className="metric-number">{cartCount}</div>
-                <div className="metric-status">Aktif</div>
               </article>
             </div>
           </div>
@@ -1700,6 +1714,7 @@ function TransactionsPage({
                   type="button"
                   className="product-card"
                   onClick={() => addToCart(product.id)}
+                  disabled={product.stock <= 0}
                 >
                   <div className="product-card__top">
                     <h3 className="product-card__title">{product.name}</h3>
@@ -1728,7 +1743,7 @@ function TransactionsPage({
               Pesanan
             </h2>
           </div>
-          <button type="button" className="button button--ghost" onClick={() => setCart([])}>
+          <button type="button" className="button button--ghost" onClick={clearCart}>
             Kosongkan
           </button>
         </div>
@@ -1764,6 +1779,7 @@ function TransactionsPage({
                       type="button"
                       className="qty-stepper__button"
                       onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                      disabled={item.product.stock <= 0}
                     >
                       +
                     </button>
@@ -2423,7 +2439,13 @@ function RefundsPage({
 }
 
 function ReportsRoute() {
+  const { session } = useAppModel();
   const [generated, setGenerated] = useState(false);
+
+  if (session?.role === "employee") {
+    return <Navigate to="/transactions" replace />;
+  }
+
   return (
     <ProtectedPage
       title="Laporan"
@@ -2441,15 +2463,28 @@ function ReportsPage({
   generated: boolean;
   setGenerated: (value: boolean) => void;
 }) {
-  const { sales, refunds, reports, setReports } = useAppModel();
+  const { sales, refunds, products, reports, setReports } = useAppModel();
   const [periodStart, setPeriodStart] = useState("2026-03-01");
   const [periodEnd, setPeriodEnd] = useState("2026-03-31");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [periodError, setPeriodError] = useState("");
 
   const salesTotal = sales.reduce((total, sale) => total + sale.total, 0);
   const refundTotal = refunds.reduce((total, refund) => total + refund.total, 0);
-  const saleShareCount = sales.filter((sale) => Boolean(sale.customerPhone)).length;
-  const shareRate = sales.length ? Math.round((saleShareCount / sales.length) * 100) : 0;
+  const netRevenue = Math.max(salesTotal - refundTotal, 0);
+  const averageTransactionValue = sales.length ? Math.round(salesTotal / sales.length) : 0;
+  const productCostById = new Map<string, number>(
+    products.map((product) => [product.id, product.netPrice ?? 0]),
+  );
+  const estimatedGrossProfit = sales.reduce(
+    (total, sale) =>
+      total +
+      sale.items.reduce((sum, item) => {
+        const netPrice = productCostById.get(item.productId) ?? 0;
+        return sum + Math.max(item.unitPrice - netPrice, 0) * item.quantity;
+      }, 0),
+    0,
+  );
   const stockMovement = sales.reduce(
     (total, sale) => total + sale.items.reduce((sum, item) => sum + item.quantity, 0),
     0,
@@ -2465,8 +2500,20 @@ function ReportsPage({
     .sort((left, right) => right[1] - left[1])
     .slice(0, 3);
   const topProduct = topProducts[0]?.[0] ?? "SEDAAP MIE GR 91GR (40)";
+  const isPeriodValid = Boolean(periodStart && periodEnd && periodStart <= periodEnd);
 
   function generateReport() {
+    if (!periodStart || !periodEnd) {
+      setPeriodError("Pilih tanggal mulai dan tanggal selesai terlebih dahulu.");
+      return;
+    }
+
+    if (periodStart > periodEnd) {
+      setPeriodError("Tanggal mulai tidak boleh lebih besar dari tanggal selesai.");
+      return;
+    }
+
+    setPeriodError("");
     setIsGenerating(true);
     window.setTimeout(() => {
       setIsGenerating(false);
@@ -2498,18 +2545,28 @@ function ReportsPage({
             <span className="field-label">Tanggal mulai</span>
             <input
               className="field"
-              type="text"
+              type="date"
               value={periodStart}
-              onChange={(event) => setPeriodStart(event.target.value)}
+              max={periodEnd}
+              required
+              onChange={(event) => {
+                setPeriodStart(event.target.value);
+                setPeriodError("");
+              }}
             />
           </label>
           <label className="field-group">
             <span className="field-label">Tanggal selesai</span>
             <input
               className="field"
-              type="text"
+              type="date"
               value={periodEnd}
-              onChange={(event) => setPeriodEnd(event.target.value)}
+              min={periodStart}
+              required
+              onChange={(event) => {
+                setPeriodEnd(event.target.value);
+                setPeriodError("");
+              }}
             />
           </label>
           <div className="field-group">
@@ -2518,6 +2575,8 @@ function ReportsPage({
               type="button"
               className="button button--primary button--full"
               onClick={generateReport}
+              disabled={isGenerating}
+              aria-disabled={!isPeriodValid || isGenerating}
             >
               {isGenerating ? "Membuat laporan..." : "Generate Laporan Bulanan"}
             </button>
@@ -2527,6 +2586,7 @@ function ReportsPage({
             <span className="button button--secondary button--full">Buat Perkiraan</span>
           </div>
         </div>
+        {periodError ? <article className="notice notice--error spacer-top">{periodError}</article> : null}
       </section>
       <section className="stat-grid">
         <article className="stat-card surface--accent">
@@ -2548,16 +2608,16 @@ function ReportsPage({
       </section>
       <section className="stat-grid stat-grid--three">
         <article className="stat-card surface">
-          <div className="stat-label">Sales Selesai</div>
-          <div className="stat-value">{sales.length}</div>
+          <div className="stat-label">Omzet Bersih</div>
+          <div className="stat-value">{formatCurrency(netRevenue)}</div>
         </article>
         <article className="stat-card surface--accent">
-          <div className="stat-label">Struk Dibagikan</div>
-          <div className="stat-value">{saleShareCount}</div>
+          <div className="stat-label">Rata-rata Belanja</div>
+          <div className="stat-value">{formatCurrency(averageTransactionValue)}</div>
         </article>
         <article className="stat-card surface">
-          <div className="stat-label">Share Rate Struk</div>
-          <div className="stat-value">{shareRate}%</div>
+          <div className="stat-label">Estimasi Laba Kotor</div>
+          <div className="stat-value">{formatCurrency(estimatedGrossProfit)}</div>
         </article>
       </section>
       {generated ? (
@@ -2627,7 +2687,7 @@ function ReportsPage({
               <tr>
                 <th>Dibuat</th>
                 <th>Produk</th>
-                <th>Rata-rata Penjualan Harian</th>
+                <th>Total Terjual</th>
                 <th>Saran Restok</th>
               </tr>
             </thead>
@@ -2636,7 +2696,7 @@ function ReportsPage({
                 <tr key={productName}>
                   <td>{formatShortDate(new Date().toISOString())}</td>
                   <td>{productName}</td>
-                  <td>{(quantity / 30).toFixed(1)}</td>
+                  <td>{quantity} item</td>
                   <td>{Math.ceil(quantity * 2.5)}</td>
                 </tr>
               ))}

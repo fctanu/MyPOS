@@ -31,6 +31,94 @@ button {
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
+.transactions-order-expanded-page .hero-grid,
+.transactions-order-collapsed-page .hero-grid {
+  grid-template-columns: minmax(0, 1fr) 180px;
+}
+
+.stats-pair--single {
+  grid-template-columns: 1fr;
+}
+
+.transactions-order-expanded-page .checkout-panel,
+.transactions-order-collapsed-page .checkout-panel {
+  position: sticky;
+  top: 22px;
+  max-height: calc(100vh - 44px);
+  display: flex;
+  flex-direction: column;
+}
+
+.transactions-order-expanded-page .checkout-panel__header,
+.transactions-order-expanded-page .checkout-panel__footer,
+.transactions-order-collapsed-page .checkout-panel__header,
+.transactions-order-collapsed-page .checkout-panel__footer {
+  flex: 0 0 auto;
+}
+
+.transactions-order-expanded-page .checkout-panel__body,
+.transactions-order-collapsed-page .checkout-panel__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.transactions-order-expanded-page .catalog-shell,
+.transactions-order-collapsed-page .catalog-shell {
+  max-height: calc(100vh - 44px);
+  display: flex;
+  flex-direction: column;
+}
+
+.transactions-order-expanded-page .catalog-shell .hero-panel,
+.transactions-order-collapsed-page .catalog-shell .hero-panel {
+  flex: 0 0 auto;
+}
+
+.transactions-order-expanded-page .catalog-body,
+.transactions-order-collapsed-page .catalog-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.transactions-order-expanded-page .product-card,
+.transactions-order-collapsed-page .product-card {
+  display: flex;
+  min-width: 0;
+  min-height: 172px;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.transactions-order-expanded-page .product-card__top,
+.transactions-order-collapsed-page .product-card__top {
+  min-width: 0;
+}
+
+.transactions-order-expanded-page .product-card__title,
+.transactions-order-collapsed-page .product-card__title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.transactions-order-expanded-page .product-card__category,
+.transactions-order-collapsed-page .product-card__category {
+  margin-top: auto;
+  overflow-wrap: anywhere;
+}
+
+.transactions-order-expanded-page .product-card__price,
+.transactions-order-collapsed-page .product-card__price {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: 26px;
+  line-height: 1.08;
+}
+
 .role-card,
 .product-card,
 .chip,
