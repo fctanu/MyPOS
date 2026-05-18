@@ -1,5 +1,16 @@
 @import "../html-css-version/css/base.css";
 
+body.theme-new {
+  --color-primary: #1C4D8D;
+  --color-primary-soft: rgba(28, 77, 141, 0.08);
+  --color-secondary: #4988C4;
+  --color-secondary-soft: rgba(73, 136, 196, 0.1);
+  --color-ink: #0F2854;
+  --color-dark-card: #0F2854;
+  /* background/canvas defaults mapped somewhat closely. 
+     If full white is preferred: --color-canvas: #FFFFFF; */
+}
+
 html,
 body,
 #root {

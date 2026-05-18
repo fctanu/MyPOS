@@ -887,6 +887,15 @@ function ProtectedPage({
   const { session, sidebarCollapsed, setSidebarCollapsed, setSession } = useAppModel();
   const location = useLocation();
   const [now, setNow] = useState(() => new Date());
+  const [themeMode, setThemeMode] = useState<"old" | "new">("old");
+
+  useEffect(() => {
+    if (themeMode === "new") {
+      document.body.classList.add("theme-new");
+    } else {
+      document.body.classList.remove("theme-new");
+    }
+  }, [themeMode]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 1000);
@@ -970,7 +979,14 @@ function ProtectedPage({
               <div>Tipe: {session.role === "owner" ? "Pemilik" : "Karyawan"}</div>
               <div>Data tersimpan lokal di browser ini.</div>
             </div>
-            <div className="spacer-top">
+            <div className="spacer-top" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <button
+                type="button"
+                className="button button--secondary button--full"
+                onClick={() => setThemeMode((m) => (m === "old" ? "new" : "old"))}
+              >
+                Ganti Tema ({themeMode === "old" ? "Old" : "New"})
+              </button>
               <button
                 type="button"
                 className="button button--secondary button--full"
