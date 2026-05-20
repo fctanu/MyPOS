@@ -102,11 +102,17 @@ type AppContextValue = {
   sidebarCollapsed: boolean;
   setSidebarCollapsed: (value: boolean) => void;
   customers: Customer[];
-  setCustomers: (updater: Customer[] | ((current: Customer[]) => Customer[])) => void;
+  setCustomers: (
+    updater: Customer[] | ((current: Customer[]) => Customer[]),
+  ) => void;
   categories: Category[];
-  setCategories: (updater: Category[] | ((current: Category[]) => Category[])) => void;
+  setCategories: (
+    updater: Category[] | ((current: Category[]) => Category[]),
+  ) => void;
   products: Product[];
-  setProducts: (updater: Product[] | ((current: Product[]) => Product[])) => void;
+  setProducts: (
+    updater: Product[] | ((current: Product[]) => Product[]),
+  ) => void;
   sales: Sale[];
   setSales: (updater: Sale[] | ((current: Sale[]) => Sale[])) => void;
   refunds: RefundRecord[];
@@ -115,12 +121,49 @@ type AppContextValue = {
   ) => void;
   reports: ReportSnapshot[];
   setReports: (
-    updater: ReportSnapshot[] | ((current: ReportSnapshot[]) => ReportSnapshot[]),
+    updater:
+      | ReportSnapshot[]
+      | ((current: ReportSnapshot[]) => ReportSnapshot[]),
   ) => void;
 };
 
+const DEFAULT_PRODUCT_STOCK = 50;
+const SEEDED_PRODUCT_MIN_STOCK = 30;
+const SEEDED_PRODUCT_STOCK_STEP = 5;
+const SEEDED_PRODUCT_STOCK_BUCKETS = 5;
+const RESTOCK_THRESHOLD_RATIO = 0.3;
+const DEFAULT_RESTOCK_THRESHOLD = Math.ceil(
+  DEFAULT_PRODUCT_STOCK * RESTOCK_THRESHOLD_RATIO,
+);
+
+function getRestockThreshold(stock: number) {
+  return Math.ceil(stock * RESTOCK_THRESHOLD_RATIO);
+}
+
+function getResetProductStock(index: number) {
+  return (
+    SEEDED_PRODUCT_MIN_STOCK +
+    (index % SEEDED_PRODUCT_STOCK_BUCKETS) * SEEDED_PRODUCT_STOCK_STEP
+  );
+}
+
+function resetProductQuantities(products: Product[]) {
+  return products.map((product, index) => {
+    const stock = getResetProductStock(index);
+    return {
+      ...product,
+      stock,
+      lowStockThreshold: getRestockThreshold(stock),
+    };
+  });
+}
+
 const categoriesSeed: Category[] = [
-  { id: "mie", name: "MIE", description: "Instant noodles and dry noodle staples." },
+  {
+    id: "mie",
+    name: "MIE",
+    description: "Instant noodles and dry noodle staples.",
+  },
   {
     id: "bumbu",
     name: "BUMBU MASAKAN",
@@ -131,24 +174,48 @@ const categoriesSeed: Category[] = [
     name: "SUSU & MINUMAN",
     description: "Milk, canned drinks, and beverage staples.",
   },
-  { id: "kopi", name: "KOPI & TEH", description: "Coffee, tea, and warm drinks." },
-  { id: "snack", name: "SNACK", description: "Biscuits, chips, wafers, and cashier snacks." },
-  { id: "sabun", name: "SABUN & DETERJEN", description: "Soap, detergent, and household cleaning items." },
-  { id: "gula", name: "GULA TEPUNG", description: "Sugar, flour, and baking staples." },
-  { id: "kesehatan", name: "KESEHATAN", description: "Health, medicine, and personal care items." },
-  { id: "dessert", name: "DESSERT", description: "Dessert mixes and jelly products." },
+  {
+    id: "kopi",
+    name: "KOPI & TEH",
+    description: "Coffee, tea, and warm drinks.",
+  },
+  {
+    id: "snack",
+    name: "SNACK",
+    description: "Biscuits, chips, wafers, and cashier snacks.",
+  },
+  {
+    id: "sabun",
+    name: "SABUN & DETERJEN",
+    description: "Soap, detergent, and household cleaning items.",
+  },
+  {
+    id: "gula",
+    name: "GULA TEPUNG",
+    description: "Sugar, flour, and baking staples.",
+  },
+  {
+    id: "kesehatan",
+    name: "KESEHATAN",
+    description: "Health, medicine, and personal care items.",
+  },
+  {
+    id: "dessert",
+    name: "DESSERT",
+    description: "Dessert mixes and jelly products.",
+  },
 ];
 
 const categoryIdBySeedName: Record<string, string> = {
-  "MIE": "mie",
+  MIE: "mie",
   "BUMBU MASAKAN": "bumbu",
   "SUSU & MINUMAN": "minuman",
   "KOPI & TEH": "kopi",
-  "SNACK": "snack",
+  SNACK: "snack",
   "SABUN & DETERJEN": "sabun",
   "GULA TEPUNG": "gula",
-  "KESEHATAN": "kesehatan",
-  "DESSERT": "dessert",
+  KESEHATAN: "kesehatan",
+  DESSERT: "dessert",
 };
 
 type ProductSeedRow = readonly [
@@ -251,17 +318,26 @@ const productSeedRows: ProductSeedRow[] = [
 ];
 
 const productsSeed: Product[] = productSeedRows.map(
-  ([id, name, category, netPrice, wholesalePrice, retailPrice]) => ({
-    id: `prd-${id}`,
-    sku: `${slugify(name)}-${id}`,
-    name,
-    categoryId: categoryIdBySeedName[category] ?? "bumbu",
-    netPrice: netPrice > 0 ? netPrice : undefined,
-    wholesalePrice: wholesalePrice > 0 ? wholesalePrice : undefined,
-    retailPrice: retailPrice > 0 ? retailPrice : wholesalePrice > 0 ? wholesalePrice : netPrice,
-    stock: 50 + ((id * 17) % 120),
-    lowStockThreshold: 12,
-  }),
+  ([id, name, category, netPrice, wholesalePrice, retailPrice], index) => {
+    const stock = getResetProductStock(index);
+
+    return {
+      id: `prd-${id}`,
+      sku: `${slugify(name)}-${id}`,
+      name,
+      categoryId: categoryIdBySeedName[category] ?? "bumbu",
+      netPrice: netPrice > 0 ? netPrice : undefined,
+      wholesalePrice: wholesalePrice > 0 ? wholesalePrice : undefined,
+      retailPrice:
+        retailPrice > 0
+          ? retailPrice
+          : wholesalePrice > 0
+            ? wholesalePrice
+            : netPrice,
+      stock,
+      lowStockThreshold: getRestockThreshold(stock),
+    };
+  },
 );
 
 const customersSeed: Customer[] = [
@@ -301,9 +377,27 @@ const salesSeed: Sale[] = [
     pointsUsed: 0,
     pointsEarned: 202,
     items: [
-      { productId: "prd-5", productName: "MIE INSTAN INTERMI (40)", quantity: 4, unitPrice: 1500, subtotal: 6000 },
-      { productId: "prd-9", productName: "RIMBA", quantity: 1, unitPrice: 10000, subtotal: 10000 },
-      { productId: "prd-14", productName: "KAPAL API MIX", quantity: 2, unitPrice: 2125, subtotal: 4250 },
+      {
+        productId: "prd-10",
+        productName: "MIE INSTAN INTERMI (40)",
+        quantity: 4,
+        unitPrice: 1500,
+        subtotal: 6000,
+      },
+      {
+        productId: "prd-12",
+        productName: "RIMBA",
+        quantity: 1,
+        unitPrice: 10000,
+        subtotal: 10000,
+      },
+      {
+        productId: "prd-59",
+        productName: "KAPAL API",
+        quantity: 2,
+        unitPrice: 2125,
+        subtotal: 4250,
+      },
     ],
   },
   {
@@ -316,9 +410,27 @@ const salesSeed: Sale[] = [
     pointsUsed: 0,
     pointsEarned: 1757,
     items: [
-      { productId: "prd-12", productName: "INDOMILK KALENG PUTIH", quantity: 8, unitPrice: 12000, subtotal: 96000 },
-      { productId: "prd-10", productName: "TAWON", quantity: 3, unitPrice: 15000, subtotal: 45000 },
-      { productId: "prd-16", productName: "ROMA KELAPA", quantity: 4, unitPrice: 8693.5, subtotal: 34774 },
+      {
+        productId: "prd-20",
+        productName: "INDOMILK KALENG PUTIH",
+        quantity: 8,
+        unitPrice: 12000,
+        subtotal: 96000,
+      },
+      {
+        productId: "prd-13",
+        productName: "TAWON",
+        quantity: 3,
+        unitPrice: 15000,
+        subtotal: 45000,
+      },
+      {
+        productId: "prd-75",
+        productName: "CRISPY CR",
+        quantity: 4,
+        unitPrice: 8693.5,
+        subtotal: 34774,
+      },
     ],
   },
   {
@@ -333,8 +445,20 @@ const salesSeed: Sale[] = [
     pointsUsed: 0,
     pointsEarned: 185,
     items: [
-      { productId: "prd-1", productName: "SEDAAP MIE GR 91GR (40)", quantity: 2, unitPrice: 3500, subtotal: 7000 },
-      { productId: "prd-11", productName: "BENDERA KALENG", quantity: 1, unitPrice: 12000, subtotal: 12000 },
+      {
+        productId: "prd-5",
+        productName: "SEDAAP MIE GR 91GR (40)",
+        quantity: 2,
+        unitPrice: 3500,
+        subtotal: 7000,
+      },
+      {
+        productId: "prd-19",
+        productName: "BENDERA KALENG",
+        quantity: 1,
+        unitPrice: 12000,
+        subtotal: 12000,
+      },
     ],
   },
 ];
@@ -453,9 +577,13 @@ function buildReceiptHtml({
     )
     .join("");
 
-  const customerLine = sale.customerName ? `<div>Pelanggan: ${escapeHtml(sale.customerName)}</div>` : "";
+  const customerLine = sale.customerName
+    ? `<div>Pelanggan: ${escapeHtml(sale.customerName)}</div>`
+    : "";
   const pointsUsedLine =
-    sale.pointsUsed > 0 ? `<div>Poin digunakan: ${escapeHtml(String(sale.pointsUsed))}</div>` : "";
+    sale.pointsUsed > 0
+      ? `<div>Poin digunakan: ${escapeHtml(String(sale.pointsUsed))}</div>`
+      : "";
   const pointsEarnedLine = `<div>Poin didapat: ${escapeHtml(String(sale.pointsEarned))}</div>`;
 
   return `<!doctype html>
@@ -571,7 +699,9 @@ function buildReceiptHtml({
 function printSaleReceipt(sale: Sale) {
   const printWindow = window.open("", "mypos-receipt", "width=420,height=720");
   if (!printWindow) {
-    throw new Error("Popup struk diblokir browser. Izinkan pop-up lalu coba lagi.");
+    throw new Error(
+      "Popup struk diblokir browser. Izinkan pop-up lalu coba lagi.",
+    );
   }
 
   printWindow.document.open();
@@ -611,11 +741,16 @@ function normalizeImportRows(rawRows: unknown[][]): ImportRow[] {
   }
 
   const [headerRow, ...dataRows] = rawRows;
-  const headers = headerRow.map((cell) => String(cell ?? "").trim().toLowerCase());
+  const headers = headerRow.map((cell) =>
+    String(cell ?? "")
+      .trim()
+      .toLowerCase(),
+  );
   const idIndex = headers.findIndex((header) => header === "id");
   const nameIndex = headers.findIndex((header) => header === "name");
   const categoryIndex = headers.findIndex(
-    (header) => header === "category" || header === "kategori" || header === "kriteria",
+    (header) =>
+      header === "category" || header === "kategori" || header === "kriteria",
   );
   const retailPriceIndex = headers.findIndex(
     (header) =>
@@ -628,7 +763,8 @@ function normalizeImportRows(rawRows: unknown[][]): ImportRow[] {
       header === "price",
   );
   const netPriceIndex = headers.findIndex(
-    (header) => header === "net price" || header === "netprice" || header === "harga net",
+    (header) =>
+      header === "net price" || header === "netprice" || header === "harga net",
   );
   const wholesalePriceIndex = headers.findIndex(
     (header) =>
@@ -653,7 +789,9 @@ function normalizeImportRows(rawRows: unknown[][]): ImportRow[] {
       const netPrice =
         netPriceIndex === -1
           ? Number.NaN
-          : Number.parseFloat(String(row[netPriceIndex] ?? "").replace(/[^0-9.-]/g, ""));
+          : Number.parseFloat(
+              String(row[netPriceIndex] ?? "").replace(/[^0-9.-]/g, ""),
+            );
       const wholesalePrice =
         wholesalePriceIndex === -1
           ? Number.NaN
@@ -669,7 +807,9 @@ function normalizeImportRows(rawRows: unknown[][]): ImportRow[] {
         name: String(row[nameIndex] ?? "").trim(),
         category: String(row[categoryIndex] ?? "").trim(),
         netPrice: Number.isFinite(netPrice) ? netPrice : undefined,
-        wholesalePrice: Number.isFinite(wholesalePrice) ? wholesalePrice : undefined,
+        wholesalePrice: Number.isFinite(wholesalePrice)
+          ? wholesalePrice
+          : undefined,
         retailPrice,
       };
     })
@@ -709,11 +849,7 @@ async function parseImportFile(file: File): Promise<ImportRow[]> {
   throw new Error("Format file belum didukung. Gunakan .csv atau .xlsx.");
 }
 
-function IconBase({
-  children,
-}: {
-  children: ReactNode;
-}) {
+function IconBase({ children }: { children: ReactNode }) {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24">
       {children}
@@ -775,10 +911,8 @@ function SearchIcon() {
 function PanelOpenIcon() {
   return (
     <IconBase>
-      <rect x="3" y="4" width="18" height="16" rx="2" />
-      <path d="M9 4v16" />
-      <path d="m14 12 3-3" />
-      <path d="m14 12 3 3" />
+      <path d="M5 12h14" />
+      <path d="m13 6 6 6-6 6" />
     </IconBase>
   );
 }
@@ -786,10 +920,8 @@ function PanelOpenIcon() {
 function PanelCloseIcon() {
   return (
     <IconBase>
-      <rect x="3" y="4" width="18" height="16" rx="2" />
-      <path d="M15 4v16" />
-      <path d="m10 12 3-3" />
-      <path d="m10 12 3 3" />
+      <path d="M19 12H5" />
+      <path d="m11 6-6 6 6 6" />
     </IconBase>
   );
 }
@@ -884,18 +1016,15 @@ function ProtectedPage({
   pageClass: string;
   children: ReactNode;
 }) {
-  const { session, sidebarCollapsed, setSidebarCollapsed, setSession } = useAppModel();
+  const {
+    session,
+    sidebarCollapsed,
+    setSidebarCollapsed,
+    setSession,
+    setProducts,
+  } = useAppModel();
   const location = useLocation();
   const [now, setNow] = useState(() => new Date());
-  const [themeMode, setThemeMode] = useState<"old" | "new">("old");
-
-  useEffect(() => {
-    if (themeMode === "new") {
-      document.body.classList.add("theme-new");
-    } else {
-      document.body.classList.remove("theme-new");
-    }
-  }, [themeMode]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 1000);
@@ -906,8 +1035,12 @@ function ProtectedPage({
     return <Navigate to="/login" replace />;
   }
 
-  const shellClass = sidebarCollapsed ? "site-shell site-shell--collapsed" : "site-shell";
-  const sidebarClass = sidebarCollapsed ? "sidebar sidebar--collapsed" : "sidebar";
+  const shellClass = sidebarCollapsed
+    ? "site-shell site-shell--collapsed"
+    : "site-shell";
+  const sidebarClass = sidebarCollapsed
+    ? "sidebar sidebar--collapsed"
+    : "sidebar";
 
   return (
     <div className={pageClass}>
@@ -917,7 +1050,8 @@ function ProtectedPage({
             <div className="sidebar__brand">
               <p className="sidebar__brand-kicker">POS Lokal</p>
               <h1 className="sidebar__brand-title sidebar__brand-title--small">
-                MyPOS Sumber Kasih
+                <span>MyPOS</span>
+                <span>Sumber Kasih</span>
               </h1>
             </div>
             <button
@@ -934,7 +1068,9 @@ function ProtectedPage({
             <div className="nav-list">
               <NavLink
                 to="/transactions"
-                className={({ isActive }) => `nav-link${isActive ? " is-active" : ""}`}
+                className={({ isActive }) =>
+                  `nav-link${isActive ? " is-active" : ""}`
+                }
               >
                 <span className="nav-link__icon">
                   <PosIcon />
@@ -943,7 +1079,9 @@ function ProtectedPage({
               </NavLink>
               <NavLink
                 to="/refunds"
-                className={({ isActive }) => `nav-link${isActive ? " is-active" : ""}`}
+                className={({ isActive }) =>
+                  `nav-link${isActive ? " is-active" : ""}`
+                }
               >
                 <span className="nav-link__icon">
                   <RotateIcon />
@@ -952,7 +1090,9 @@ function ProtectedPage({
               </NavLink>
               <NavLink
                 to="/products"
-                className={({ isActive }) => `nav-link${isActive ? " is-active" : ""}`}
+                className={({ isActive }) =>
+                  `nav-link${isActive ? " is-active" : ""}`
+                }
               >
                 <span className="nav-link__icon">
                   <BoxIcon />
@@ -962,7 +1102,9 @@ function ProtectedPage({
               {session.role === "owner" ? (
                 <NavLink
                   to="/reports"
-                  className={({ isActive }) => `nav-link${isActive ? " is-active" : ""}`}
+                  className={({ isActive }) =>
+                    `nav-link${isActive ? " is-active" : ""}`
+                  }
                 >
                   <span className="nav-link__icon">
                     <ChartIcon />
@@ -974,19 +1116,24 @@ function ProtectedPage({
           </nav>
           <div className="sidebar__divider" />
           <div className="sidebar__footer">
+            <button
+              type="button"
+              className="button button--secondary button--full sidebar__reset-button"
+              onClick={() => setProducts(resetProductQuantities)}
+            >
+              Reset Quantity
+            </button>
             <div className="sidebar__footer-copy">
               <strong>{session.name}</strong>
-              <div>Tipe: {session.role === "owner" ? "Pemilik" : "Karyawan"}</div>
+              <div>
+                Tipe: {session.role === "owner" ? "Pemilik" : "Karyawan"}
+              </div>
               <div>Data tersimpan lokal di browser ini.</div>
             </div>
-            <div className="spacer-top" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              <button
-                type="button"
-                className="button button--secondary button--full"
-                onClick={() => setThemeMode((m) => (m === "old" ? "new" : "old"))}
-              >
-                Ganti Tema ({themeMode === "old" ? "Old" : "New"})
-              </button>
+            <div
+              className="spacer-top"
+              style={{ display: "flex", flexDirection: "column", gap: "8px" }}
+            >
               <button
                 type="button"
                 className="button button--secondary button--full"
@@ -1002,7 +1149,9 @@ function ProtectedPage({
             <h2 className="topbar__title">{title}</h2>
             <div className="topbar__clock">
               <div className="topbar__time">{formatClockTime(now)}</div>
-              <div className="topbar__date">{formatLongIndonesianDate(now)}</div>
+              <div className="topbar__date">
+                {formatLongIndonesianDate(now)}
+              </div>
             </div>
           </header>
           <main className="page-content" key={location.pathname}>
@@ -1079,7 +1228,9 @@ function LoginPage() {
               onClick={() => {
                 setSession({
                   role: selectedRole,
-                  name: name.trim() || (selectedRole === "owner" ? "Pemilik" : "Karyawan"),
+                  name:
+                    name.trim() ||
+                    (selectedRole === "owner" ? "Pemilik" : "Karyawan"),
                 });
                 navigate("/transactions");
               }}
@@ -1097,7 +1248,9 @@ type CartLine = { productId: string; quantity: number };
 
 function TransactionsRoute() {
   const { sidebarCollapsed } = useAppModel();
-  const [step, setStep] = useState<"lookup" | "order" | "payment" | "receipt">("lookup");
+  const [step, setStep] = useState<"lookup" | "order" | "payment" | "receipt">(
+    "lookup",
+  );
 
   const pageClass =
     step === "lookup"
@@ -1139,7 +1292,9 @@ function TransactionsPage({
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
   const [newCustomerAddress, setNewCustomerAddress] = useState("");
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>("cus-1");
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(
+    "cus-1",
+  );
   const [productQuery, setProductQuery] = useState("");
   const [activeCategoryId, setActiveCategoryId] = useState<string>("all");
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -1150,6 +1305,7 @@ function TransactionsPage({
     "Struk digital akan diarahkan ke nomor 0812-7000-1188 dan tetap bisa diteruskan pelanggan.",
   );
   const [printStatus, setPrintStatus] = useState("");
+  const receiptReturnTimerRef = useRef<number | null>(null);
 
   const selectedCustomer =
     customers.find((customer) => customer.id === selectedCustomerId) ?? null;
@@ -1168,23 +1324,39 @@ function TransactionsPage({
     categories.map((category) => [category.id, category.name]),
   );
   const categoryTabs = categories
-    .filter((category) => products.some((product) => product.categoryId === category.id))
+    .filter((category) =>
+      products.some((product) => product.categoryId === category.id),
+    )
     .map((category) => ({
       id: category.id,
       name: category.name,
-      count: products.filter((product) => product.categoryId === category.id).length,
+      count: products.filter((product) => product.categoryId === category.id)
+        .length,
     }));
 
   useEffect(() => {
-    if (activeCategoryId !== "all" && !categoryTabs.some((category) => category.id === activeCategoryId)) {
+    if (
+      activeCategoryId !== "all" &&
+      !categoryTabs.some((category) => category.id === activeCategoryId)
+    ) {
       setActiveCategoryId("all");
     }
   }, [activeCategoryId, categoryTabs]);
 
+  useEffect(() => {
+    return () => {
+      if (receiptReturnTimerRef.current !== null) {
+        window.clearTimeout(receiptReturnTimerRef.current);
+      }
+    };
+  }, []);
+
   const filteredProducts = products.filter((product) => {
-    const matchesCategory = activeCategoryId === "all" || product.categoryId === activeCategoryId;
+    const matchesCategory =
+      activeCategoryId === "all" || product.categoryId === activeCategoryId;
     const query = productQuery.trim().toLowerCase();
-    const categoryName = categoryNameById.get(product.categoryId)?.toLowerCase() ?? "";
+    const categoryName =
+      categoryNameById.get(product.categoryId)?.toLowerCase() ?? "";
     const matchesQuery =
       !query ||
       product.name.toLowerCase().includes(query) ||
@@ -1203,11 +1375,19 @@ function TransactionsPage({
         subtotal: product.retailPrice * line.quantity,
       };
     })
-    .filter((item): item is { product: Product; quantity: number; subtotal: number } => item !== null);
+    .filter(
+      (
+        item,
+      ): item is { product: Product; quantity: number; subtotal: number } =>
+        item !== null,
+    );
 
   const cartCount = cart.reduce((total, line) => total + line.quantity, 0);
   const subtotal = cartItems.reduce((total, item) => total + item.subtotal, 0);
-  const pointsUsed = usePoints && selectedCustomer ? Math.min(selectedCustomer.loyaltyPoints, subtotal) : 0;
+  const pointsUsed =
+    usePoints && selectedCustomer
+      ? Math.min(selectedCustomer.loyaltyPoints, subtotal)
+      : 0;
   const finalTotal = Math.max(subtotal - pointsUsed, 0);
   const pointsEarned = Math.floor(subtotal * 0.01);
 
@@ -1219,7 +1399,9 @@ function TransactionsPage({
     setProducts((current) =>
       current.map((product) => {
         const cartLine = lines.find((line) => line.productId === product.id);
-        return cartLine ? { ...product, stock: product.stock + cartLine.quantity } : product;
+        return cartLine
+          ? { ...product, stock: product.stock + cartLine.quantity }
+          : product;
       }),
     );
   }
@@ -1237,7 +1419,9 @@ function TransactionsPage({
 
     setProducts((current) =>
       current.map((entry) =>
-        entry.id === productId ? { ...entry, stock: Math.max(entry.stock - 1, 0) } : entry,
+        entry.id === productId
+          ? { ...entry, stock: Math.max(entry.stock - 1, 0) }
+          : entry,
       ),
     );
     setCart((current) => {
@@ -1276,12 +1460,16 @@ function TransactionsPage({
     }
 
     if (nextQuantity <= 0) {
-      setCart((current) => current.filter((line) => line.productId !== productId));
+      setCart((current) =>
+        current.filter((line) => line.productId !== productId),
+      );
       return;
     }
     setCart((current) =>
       current.map((line) =>
-        line.productId === productId ? { ...line, quantity: nextQuantity } : line,
+        line.productId === productId
+          ? { ...line, quantity: nextQuantity }
+          : line,
       ),
     );
   }
@@ -1318,7 +1506,9 @@ function TransactionsPage({
     const receiptIndex =
       Math.max(
         1049,
-        ...sales.map((sale) => Number.parseInt(sale.receiptNumber.replace("RCPT-", ""), 10)),
+        ...sales.map((sale) =>
+          Number.parseInt(sale.receiptNumber.replace("RCPT-", ""), 10),
+        ),
       ) + 1;
 
     const sale: Sale = {
@@ -1347,7 +1537,8 @@ function TransactionsPage({
           customer.id === selectedCustomer.id
             ? {
                 ...customer,
-                loyaltyPoints: customer.loyaltyPoints - pointsUsed + pointsEarned,
+                loyaltyPoints:
+                  customer.loyaltyPoints - pointsUsed + pointsEarned,
               }
             : customer,
         ),
@@ -1358,7 +1549,9 @@ function TransactionsPage({
           : "Pilih pelanggan dengan nomor WhatsApp untuk kirim langsung, atau bagikan manual.",
       );
     } else {
-      setReceiptMessage("Struk siap dicetak dan dapat dibagikan manual ke pelanggan umum.");
+      setReceiptMessage(
+        "Struk siap dicetak dan dapat dibagikan manual ke pelanggan umum.",
+      );
     }
 
     setSales((current) => [sale, ...current]);
@@ -1369,6 +1562,10 @@ function TransactionsPage({
   }
 
   function resetTransaction() {
+    if (receiptReturnTimerRef.current !== null) {
+      window.clearTimeout(receiptReturnTimerRef.current);
+      receiptReturnTimerRef.current = null;
+    }
     setSearchCustomer("");
     setShowCreateCustomer(false);
     setSelectedCustomerId("cus-1");
@@ -1390,9 +1587,20 @@ function TransactionsPage({
 
     try {
       printSaleReceipt(completedSale);
-      setPrintStatus("Jendela print struk dibuka. Lanjutkan dari dialog print browser.");
+      setPrintStatus(
+        "Jendela print struk dibuka. Halaman akan kembali ke transaksi dalam 5 detik.",
+      );
+      if (receiptReturnTimerRef.current !== null) {
+        window.clearTimeout(receiptReturnTimerRef.current);
+      }
+      receiptReturnTimerRef.current = window.setTimeout(() => {
+        receiptReturnTimerRef.current = null;
+        resetTransaction();
+      }, 5000);
     } catch (error) {
-      setPrintStatus(error instanceof Error ? error.message : "Gagal membuka print struk.");
+      setPrintStatus(
+        error instanceof Error ? error.message : "Gagal membuka print struk.",
+      );
     }
   }
 
@@ -1401,7 +1609,9 @@ function TransactionsPage({
       <div className="page-stack page-width-lg">
         <section className="panel">
           <h1 className="page-heading">Data Pelanggan</h1>
-          <p className="section-subtitle">Cari pelanggan berdasarkan nama atau nomor telepon.</p>
+          <p className="section-subtitle">
+            Cari pelanggan berdasarkan nama atau nomor telepon.
+          </p>
           <div className="form-stack spacer-top">
             <label className="field-group">
               <span className="field-label">Cari pelanggan</span>
@@ -1490,11 +1700,17 @@ function TransactionsPage({
                 <textarea
                   className="textarea-field"
                   value={newCustomerAddress}
-                  onChange={(event) => setNewCustomerAddress(event.target.value)}
+                  onChange={(event) =>
+                    setNewCustomerAddress(event.target.value)
+                  }
                 />
               </label>
               <div className="button-row">
-                <button type="button" className="button button--primary" onClick={createCustomer}>
+                <button
+                  type="button"
+                  className="button button--primary"
+                  onClick={createCustomer}
+                >
                   Simpan
                 </button>
                 <button
@@ -1517,7 +1733,11 @@ function TransactionsPage({
       <div className="page-width-md page-stack">
         <section className="panel center-card">
           <div className="compact-header">
-            <button type="button" className="button button--ghost" onClick={() => setStep("order")}>
+            <button
+              type="button"
+              className="button button--ghost"
+              onClick={() => setStep("order")}
+            >
               Kembali
             </button>
             <h1 className="page-heading">Pembayaran</h1>
@@ -1525,13 +1745,18 @@ function TransactionsPage({
           <div className="info-stack spacer-top">
             <article className="summary-box surface--soft">
               <div className="stat-label">Subtotal Pesanan</div>
-              <div className="summary-box__value" style={{ color: "var(--color-primary)" }}>
+              <div
+                className="summary-box__value"
+                style={{ color: "var(--color-primary)" }}
+              >
                 {formatCurrency(subtotal)}
               </div>
             </article>
             <article className="summary-box surface--soft">
               <div className="stat-label">Saldo Poin Loyalitas</div>
-              <div className="summary-box__value">{selectedCustomer?.loyaltyPoints ?? 0} poin</div>
+              <div className="summary-box__value">
+                {selectedCustomer?.loyaltyPoints ?? 0} poin
+              </div>
             </article>
             <article className="summary-box surface--accent">
               <div className="page-heading" style={{ fontSize: 22 }}>
@@ -1558,14 +1783,23 @@ function TransactionsPage({
               </div>
             </article>
             <article className="summary-box surface--dark">
-              <div className="stat-label" style={{ color: "rgba(255,255,255,0.7)" }}>
+              <div
+                className="stat-label"
+                style={{ color: "rgba(255,255,255,0.7)" }}
+              >
                 Harga Setelah Potongan Poin
               </div>
-              <div className="summary-box__value">{formatCurrency(finalTotal)}</div>
-              <div className="summary-box__subvalue">Poin digunakan: {pointsUsed}</div>
+              <div className="summary-box__value">
+                {formatCurrency(finalTotal)}
+              </div>
+              <div className="summary-box__subvalue">
+                Poin digunakan: {pointsUsed}
+              </div>
             </article>
             <article className="summary-box surface--soft">
-              <div className="stat-label">Poin Didapatkan dari Transaksi Ini (1%)</div>
+              <div className="stat-label">
+                Poin Didapatkan dari Transaksi Ini (1%)
+              </div>
               <div className="small-value">+{pointsEarned} poin</div>
             </article>
             <label className="field-group">
@@ -1573,7 +1807,9 @@ function TransactionsPage({
               <select
                 className="select-field"
                 value={paymentMethod}
-                onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod)}
+                onChange={(event) =>
+                  setPaymentMethod(event.target.value as PaymentMethod)
+                }
               >
                 <option value="cash">Tunai</option>
                 <option value="transfer">Transfer</option>
@@ -1600,12 +1836,17 @@ function TransactionsPage({
           <div className="info-stack spacer-top">
             <article className="summary-box surface--soft">
               <div className="stat-label">No. Struk</div>
-              <div className="summary-box__value">{completedSale.receiptNumber}</div>
+              <div className="summary-box__value">
+                {completedSale.receiptNumber}
+              </div>
             </article>
             <div className="result-grid">
               <article className="summary-box surface--soft">
                 <div className="stat-label">Total</div>
-                <div className="small-value" style={{ color: "var(--color-primary)" }}>
+                <div
+                  className="small-value"
+                  style={{ color: "var(--color-primary)" }}
+                >
                   {formatCurrency(completedSale.total)}
                 </div>
               </article>
@@ -1616,25 +1857,38 @@ function TransactionsPage({
             </div>
             {completedSale.pointsUsed > 0 ? (
               <article className="summary-box surface--accent">
-                <div className="stat-label" style={{ color: "var(--color-primary)" }}>
+                <div
+                  className="stat-label"
+                  style={{ color: "var(--color-primary)" }}
+                >
                   Poin Digunakan
                 </div>
-                <div className="small-value" style={{ color: "var(--color-primary)" }}>
+                <div
+                  className="small-value"
+                  style={{ color: "var(--color-primary)" }}
+                >
                   -{completedSale.pointsUsed} poin
                 </div>
               </article>
             ) : null}
             <article className="summary-box surface--soft">
               <div className="stat-label">Poin Didapatkan (1% dari total)</div>
-              <div className="small-value">+{completedSale.pointsEarned} poin</div>
+              <div className="small-value">
+                +{completedSale.pointsEarned} poin
+              </div>
             </article>
             <section className="receipt-list">
               <div className="receipt-list__head">Ringkasan Struk</div>
               <div className="receipt-list__body">
                 {completedSale.items.map((item) => (
-                  <article className="receipt-item" key={`${item.productId}-${item.productName}`}>
+                  <article
+                    className="receipt-item"
+                    key={`${item.productId}-${item.productName}`}
+                  >
                     <div>
-                      <h3 className="receipt-item__title">{item.productName}</h3>
+                      <h3 className="receipt-item__title">
+                        {item.productName}
+                      </h3>
                       <div className="receipt-item__meta">
                         {item.quantity} x {formatCurrency(item.unitPrice)}
                       </div>
@@ -1652,15 +1906,29 @@ function TransactionsPage({
               Cetak Struk
             </button>
             <div className="two-col">
-              <button type="button" className="button button--secondary button--full" onClick={resetTransaction}>
+              <button
+                type="button"
+                className="button button--secondary button--full"
+                onClick={resetTransaction}
+              >
                 Bagikan ke WhatsApp
               </button>
-              <button type="button" className="button button--ghost button--full" onClick={resetTransaction}>
+              <button
+                type="button"
+                className="button button--ghost button--full"
+                onClick={resetTransaction}
+              >
                 Salin Teks Struk
               </button>
             </div>
-            <article className="notice notice--success">{receiptMessage}</article>
-            {printStatus ? <article className="notice notice--success">{printStatus}</article> : null}
+            <article className="notice notice--success">
+              {receiptMessage}
+            </article>
+            {printStatus ? (
+              <article className="notice notice--success">
+                {printStatus}
+              </article>
+            ) : null}
           </div>
         </section>
       </div>
@@ -1687,10 +1955,13 @@ function TransactionsPage({
               </div>
               {selectedCustomer ? (
                 <p className="card-subtitle">
-                  Pelanggan: {selectedCustomer.name} · {selectedCustomer.loyaltyPoints} poin
+                  Pelanggan: {selectedCustomer.name} ·{" "}
+                  {selectedCustomer.loyaltyPoints} poin
                 </p>
               ) : (
-                <p className="card-subtitle">Pelanggan umum · tanpa poin loyalitas</p>
+                <p className="card-subtitle">
+                  Pelanggan umum · tanpa poin loyalitas
+                </p>
               )}
             </div>
             <div className="stats-pair stats-pair--single">
@@ -1721,30 +1992,45 @@ function TransactionsPage({
           </div>
         </div>
         <div className="catalog-body">
-          <div className={sidebarCollapsed ? "product-grid product-grid--wide" : "product-grid"}>
-            {filteredProducts.length ? filteredProducts.map((product) => {
-              const category = categories.find((entry) => entry.id === product.categoryId);
-              return (
-                <button
-                  key={product.id}
-                  type="button"
-                  className="product-card"
-                  onClick={() => addToCart(product.id)}
-                  disabled={product.stock <= 0}
-                >
-                  <div className="product-card__top">
-                    <h3 className="product-card__title">{product.name}</h3>
-                    <span className="pill">{product.stock}</span>
-                  </div>
-                  <div className="product-card__category">{category?.name ?? "-"}</div>
-                  <div className="product-card__price">{formatCurrency(product.retailPrice)}</div>
-                </button>
-              );
-            }) : (
+          <div
+            className={
+              sidebarCollapsed
+                ? "product-grid product-grid--wide"
+                : "product-grid"
+            }
+          >
+            {filteredProducts.length ? (
+              filteredProducts.map((product) => {
+                const category = categories.find(
+                  (entry) => entry.id === product.categoryId,
+                );
+                return (
+                  <button
+                    key={product.id}
+                    type="button"
+                    className="product-card"
+                    onClick={() => addToCart(product.id)}
+                    disabled={product.stock <= 0}
+                  >
+                    <div className="product-card__top">
+                      <h3 className="product-card__title">{product.name}</h3>
+                      <span className="pill">{product.stock}</span>
+                    </div>
+                    <div className="product-card__category">
+                      {category?.name ?? "-"}
+                    </div>
+                    <div className="product-card__price">
+                      {formatCurrency(product.retailPrice)}
+                    </div>
+                  </button>
+                );
+              })
+            ) : (
               <article className="empty-state">
                 <h3 className="empty-state__title">Produk tidak ditemukan</h3>
                 <p className="empty-state__copy">
-                  Coba pindah ke tab kategori lain atau kosongkan pencarian agar semua produk yang sudah di-upload terlihat.
+                  Coba pindah ke tab kategori lain atau kosongkan pencarian agar
+                  semua produk yang sudah di-upload terlihat.
                 </p>
               </article>
             )}
@@ -1759,7 +2045,11 @@ function TransactionsPage({
               Pesanan
             </h2>
           </div>
-          <button type="button" className="button button--ghost" onClick={clearCart}>
+          <button
+            type="button"
+            className="button button--ghost"
+            onClick={clearCart}
+          >
             Kosongkan
           </button>
         </div>
@@ -1786,7 +2076,9 @@ function TransactionsPage({
                     <button
                       type="button"
                       className="qty-stepper__button"
-                      onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                      onClick={() =>
+                        updateQuantity(item.product.id, item.quantity - 1)
+                      }
                     >
                       -
                     </button>
@@ -1794,7 +2086,9 @@ function TransactionsPage({
                     <button
                       type="button"
                       className="qty-stepper__button"
-                      onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                      onClick={() =>
+                        updateQuantity(item.product.id, item.quantity + 1)
+                      }
                       disabled={item.product.stock <= 0}
                     >
                       +
@@ -1806,7 +2100,9 @@ function TransactionsPage({
           ) : (
             <div className="empty-state">
               <h3 className="empty-state__title">Belum ada item</h3>
-              <p className="empty-state__copy">Tambahkan produk dari panel kiri.</p>
+              <p className="empty-state__copy">
+                Tambahkan produk dari panel kiri.
+              </p>
             </div>
           )}
         </div>
@@ -1864,11 +2160,16 @@ function ProductsPage({
   const [categoryDescription, setCategoryDescription] = useState(
     "Biskuit, keripik, wafer, dan pelengkap kasir cepat.",
   );
-  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
-  const [adjustingProductId, setAdjustingProductId] = useState<string | null>(null);
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(
+    null,
+  );
+  const [adjustingProductId, setAdjustingProductId] = useState<string | null>(
+    null,
+  );
   const [adjustQuantity, setAdjustQuantity] = useState("12");
   const [adjustNotice, setAdjustNotice] = useState("Restok mingguan");
   const [notice, setNotice] = useState("");
+  const [isEditingProducts, setIsEditingProducts] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   async function importProductsFile(file: File) {
@@ -1880,22 +2181,25 @@ function ProductsPage({
       }
 
       const existingCategories = new Map<string, string>(
-        categories.map((category) => [category.name.toLowerCase(), category.id]),
+        categories.map((category) => [
+          category.name.toLowerCase(),
+          category.id,
+        ]),
       );
       const newCategories: Category[] = [];
       const additions: Product[] = rows.map((row, index) => {
         const categoryKey = row.category.toLowerCase();
-        let categoryId: string | undefined = existingCategories.get(categoryKey);
+        let categoryId: string | undefined =
+          existingCategories.get(categoryKey);
         if (!categoryId) {
           categoryId = makeId("cat");
           existingCategories.set(categoryKey, categoryId);
           newCategories.push({
             id: categoryId,
             name: row.category.toUpperCase(),
-            description:
-              file.name.toLowerCase().endsWith(".csv")
-                ? "Hasil import CSV."
-                : "Hasil import spreadsheet.",
+            description: file.name.toLowerCase().endsWith(".csv")
+              ? "Hasil import CSV."
+              : "Hasil import spreadsheet.",
           });
         }
         return {
@@ -1904,10 +2208,12 @@ function ProductsPage({
           name: row.name,
           categoryId,
           netPrice: row.netPrice ? Math.round(row.netPrice) : undefined,
-          wholesalePrice: row.wholesalePrice ? Math.round(row.wholesalePrice) : undefined,
+          wholesalePrice: row.wholesalePrice
+            ? Math.round(row.wholesalePrice)
+            : undefined,
           retailPrice: Math.round(row.retailPrice),
-          stock: 50,
-          lowStockThreshold: 12,
+          stock: DEFAULT_PRODUCT_STOCK,
+          lowStockThreshold: getRestockThreshold(DEFAULT_PRODUCT_STOCK),
         };
       });
 
@@ -1961,7 +2267,11 @@ function ProductsPage({
       setCategories((current) =>
         current.map((category) =>
           category.id === editingCategoryId
-            ? { ...category, name: categoryName.trim().toUpperCase(), description: categoryDescription.trim() }
+            ? {
+                ...category,
+                name: categoryName.trim().toUpperCase(),
+                description: categoryDescription.trim(),
+              }
             : category,
         ),
       );
@@ -1993,11 +2303,32 @@ function ProductsPage({
     if (Number.isNaN(delta)) return;
     setProducts((current) =>
       current.map((product) =>
-        product.id === adjustingProductId ? { ...product, stock: product.stock + delta } : product,
+        product.id === adjustingProductId
+          ? { ...product, stock: product.stock + delta }
+          : product,
       ),
     );
     setNotice(`Stok diperbarui: ${adjustNotice}.`);
     setAdjustingProductId(null);
+  }
+
+  function updateProduct(productId: string, updates: Partial<Product>) {
+    setProducts((current) =>
+      current.map((product) =>
+        product.id === productId ? { ...product, ...updates } : product,
+      ),
+    );
+  }
+
+  function parseEditableNumber(value: string) {
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) ? Math.max(parsed, 0) : 0;
+  }
+
+  function parseOptionalEditableNumber(value: string) {
+    if (!value.trim()) return undefined;
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) ? Math.max(parsed, 0) : undefined;
   }
 
   return (
@@ -2050,20 +2381,34 @@ function ProductsPage({
               Tarik file `.csv` atau `.xlsx` ke sini
             </span>
             <span className="import-dropzone__copy">
-              Atau klik area ini untuk pilih file dari komputer. Template utama: `Name`, `Kriteria`, `Net Price`, `Grosir Price`, `Eceran Price`.
+              Atau klik area ini untuk pilih file dari komputer. Template utama:
+              `Name`, `Kriteria`, `Net Price`, `Grosir Price`, `Eceran Price`.
             </span>
             <span className="button button--primary">Choose File</span>
           </label>
           <div className="spacer-top cluster">
-            <span className="muted-text">{importMessage || "Belum ada file dipilih."}</span>
+            <span className="muted-text">
+              {importMessage || "Belum ada file dipilih."}
+            </span>
           </div>
           <p className="helper-copy spacer-top">
-            Format utama: `Name`, `Kriteria`, `Eceran Price`. Kolom `Net Price` dan `Grosir Price` juga didukung. Format lama `id`, `name`, `category`, `harga` tetap bisa dipakai.
+            Format utama: `Name`, `Kriteria`, `Eceran Price`. Kolom `Net Price`
+            dan `Grosir Price` juga didukung. Format lama `id`, `name`,
+            `category`, `harga` tetap bisa dipakai.
           </p>
-          <div className="spacer-top">
+          <div className="product-list-heading spacer-top">
             <h2 className="card-title" style={{ fontSize: 28 }}>
               Daftar Produk ({products.length})
             </h2>
+            <button
+              type="button"
+              className={`button ${
+                isEditingProducts ? "button--primary" : "button--secondary"
+              }`}
+              onClick={() => setIsEditingProducts((current) => !current)}
+            >
+              {isEditingProducts ? "Selesai" : "Edit"}
+            </button>
           </div>
           <div className="table-shell spacer-top">
             <table className="data-table">
@@ -2079,15 +2424,126 @@ function ProductsPage({
                 </tr>
               </thead>
               <tbody>
-                {products.slice(0, 10).map((product) => (
+                {products.map((product) => (
                   <tr key={product.id}>
                     <td className="mono">{product.sku}</td>
-                    <td>{product.name}</td>
-                    <td>{categories.find((category) => category.id === product.categoryId)?.name ?? "-"}</td>
-                    <td>{product.netPrice ? formatCurrency(product.netPrice) : "-"}</td>
-                    <td>{product.wholesalePrice ? formatCurrency(product.wholesalePrice) : "-"}</td>
-                    <td>{formatCurrency(product.retailPrice)}</td>
-                    <td>{product.stock}</td>
+                    <td>
+                      {isEditingProducts ? (
+                        <input
+                          className="product-edit-field product-edit-field--name"
+                          value={product.name}
+                          onChange={(event) =>
+                            updateProduct(product.id, {
+                              name: event.target.value,
+                              sku: slugify(event.target.value),
+                            })
+                          }
+                        />
+                      ) : (
+                        product.name
+                      )}
+                    </td>
+                    <td>
+                      {isEditingProducts ? (
+                        <select
+                          className="product-edit-field"
+                          value={product.categoryId}
+                          onChange={(event) =>
+                            updateProduct(product.id, {
+                              categoryId: event.target.value,
+                            })
+                          }
+                        >
+                          {categories.map((category) => (
+                            <option key={category.id} value={category.id}>
+                              {category.name}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        (categories.find(
+                          (category) => category.id === product.categoryId,
+                        )?.name ?? "-")
+                      )}
+                    </td>
+                    <td>
+                      {isEditingProducts ? (
+                        <input
+                          className="product-edit-field product-edit-field--number"
+                          type="number"
+                          min="0"
+                          value={product.netPrice ?? ""}
+                          onChange={(event) =>
+                            updateProduct(product.id, {
+                              netPrice: parseOptionalEditableNumber(
+                                event.target.value,
+                              ),
+                            })
+                          }
+                        />
+                      ) : product.netPrice ? (
+                        formatCurrency(product.netPrice)
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+                    <td>
+                      {isEditingProducts ? (
+                        <input
+                          className="product-edit-field product-edit-field--number"
+                          type="number"
+                          min="0"
+                          value={product.wholesalePrice ?? ""}
+                          onChange={(event) =>
+                            updateProduct(product.id, {
+                              wholesalePrice: parseOptionalEditableNumber(
+                                event.target.value,
+                              ),
+                            })
+                          }
+                        />
+                      ) : product.wholesalePrice ? (
+                        formatCurrency(product.wholesalePrice)
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+                    <td>
+                      {isEditingProducts ? (
+                        <input
+                          className="product-edit-field product-edit-field--number"
+                          type="number"
+                          min="0"
+                          value={product.retailPrice}
+                          onChange={(event) =>
+                            updateProduct(product.id, {
+                              retailPrice: parseEditableNumber(
+                                event.target.value,
+                              ),
+                            })
+                          }
+                        />
+                      ) : (
+                        formatCurrency(product.retailPrice)
+                      )}
+                    </td>
+                    <td>
+                      {isEditingProducts ? (
+                        <input
+                          className="product-edit-field product-edit-field--stock"
+                          type="number"
+                          min="0"
+                          value={product.stock}
+                          onChange={(event) =>
+                            updateProduct(product.id, {
+                              stock: parseEditableNumber(event.target.value),
+                            })
+                          }
+                        />
+                      ) : (
+                        product.stock
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -2101,13 +2557,22 @@ function ProductsPage({
           <div className="kpi-inline">
             <div>
               <h1 className="page-heading">Manajemen Kategori</h1>
-              <p className="section-subtitle">Tambah atau edit kategori produk.</p>
+              <p className="section-subtitle">
+                Tambah atau edit kategori produk.
+              </p>
             </div>
-            <button type="button" className="button button--primary" onClick={() => setEditingCategoryId(null)}>
+            <button
+              type="button"
+              className="button button--primary"
+              onClick={() => setEditingCategoryId(null)}
+            >
               Tambah Kategori
             </button>
           </div>
-          <section className="panel surface--soft spacer-top" id="category-form">
+          <section
+            className="panel surface--soft spacer-top"
+            id="category-form"
+          >
             <h2 className="card-title" style={{ fontSize: 24 }}>
               {editingCategoryId ? "Edit Kategori" : "Tambah Kategori Baru"}
             </h2>
@@ -2126,20 +2591,34 @@ function ProductsPage({
                 <textarea
                   className="textarea-field"
                   value={categoryDescription}
-                  onChange={(event) => setCategoryDescription(event.target.value)}
+                  onChange={(event) =>
+                    setCategoryDescription(event.target.value)
+                  }
                 />
               </label>
               <div className="button-row">
-                <button type="button" className="button button--primary" onClick={saveCategory}>
+                <button
+                  type="button"
+                  className="button button--primary"
+                  onClick={saveCategory}
+                >
                   Simpan
                 </button>
-                <button type="button" className="button button--ghost" onClick={() => setEditingCategoryId(null)}>
+                <button
+                  type="button"
+                  className="button button--ghost"
+                  onClick={() => setEditingCategoryId(null)}
+                >
                   Batal
                 </button>
               </div>
             </div>
           </section>
-          {notice ? <article className="notice notice--success spacer-top">{notice}</article> : null}
+          {notice ? (
+            <article className="notice notice--success spacer-top">
+              {notice}
+            </article>
+          ) : null}
           <div className="table-shell spacer-top">
             <table className="data-table">
               <thead>
@@ -2155,9 +2634,19 @@ function ProductsPage({
                   <tr key={category.id}>
                     <td>{category.name}</td>
                     <td>{category.description}</td>
-                    <td>{products.filter((product) => product.categoryId === category.id).length}</td>
+                    <td>
+                      {
+                        products.filter(
+                          (product) => product.categoryId === category.id,
+                        ).length
+                      }
+                    </td>
                     <td className="text-right">
-                      <button type="button" className="button button--ghost" onClick={() => startEdit(category)}>
+                      <button
+                        type="button"
+                        className="button button--ghost"
+                        onClick={() => startEdit(category)}
+                      >
                         Edit
                       </button>
                     </td>
@@ -2212,7 +2701,9 @@ function ProductsPage({
               </h2>
               <div className="form-stack spacer-top">
                 <label className="field-group">
-                  <span className="field-label">Jumlah (positif / negatif)</span>
+                  <span className="field-label">
+                    Jumlah (positif / negatif)
+                  </span>
                   <input
                     className="field"
                     value={adjustQuantity}
@@ -2228,7 +2719,11 @@ function ProductsPage({
                   />
                 </label>
                 <div className="button-row">
-                  <button type="button" className="button button--primary" onClick={applyStockAdjustment}>
+                  <button
+                    type="button"
+                    className="button button--primary"
+                    onClick={applyStockAdjustment}
+                  >
                     Simpan Stok
                   </button>
                   <button
@@ -2250,11 +2745,16 @@ function ProductsPage({
 
 function RefundsRoute() {
   const [selectedSaleId, setSelectedSaleId] = useState<string>("sale-1049");
-  const pageClass = selectedSaleId ? "refunds-selected-page" : "refunds-empty-page";
+  const pageClass = selectedSaleId
+    ? "refunds-selected-page"
+    : "refunds-empty-page";
 
   return (
     <ProtectedPage title="Refund" pageClass={pageClass}>
-      <RefundsPage selectedSaleId={selectedSaleId} setSelectedSaleId={setSelectedSaleId} />
+      <RefundsPage
+        selectedSaleId={selectedSaleId}
+        setSelectedSaleId={setSelectedSaleId}
+      />
     </ProtectedPage>
   );
 }
@@ -2285,7 +2785,9 @@ function RefundsPage({
 
   function processRefund() {
     if (!selectedSale) return;
-    const refundItems = selectedSale.items.filter((item) => (quantities[item.productId] ?? 0) > 0);
+    const refundItems = selectedSale.items.filter(
+      (item) => (quantities[item.productId] ?? 0) > 0,
+    );
     if (!refundItems.length) return;
     const total = refundItems.reduce(
       (sum, item) => sum + item.unitPrice * (quantities[item.productId] ?? 0),
@@ -2294,7 +2796,9 @@ function RefundsPage({
     setProducts((current) =>
       current.map((product) => {
         const quantity = quantities[product.id] ?? 0;
-        return quantity > 0 ? { ...product, stock: product.stock + quantity } : product;
+        return quantity > 0
+          ? { ...product, stock: product.stock + quantity }
+          : product;
       }),
     );
     setRefunds((current) => [
@@ -2317,10 +2821,13 @@ function RefundsPage({
       <section className="panel">
         <h1 className="page-heading">Pencarian Refund</h1>
         <p className="section-subtitle">
-          Refund dibatasi oleh jendela waktu yang ditentukan dan dilacak ke struk asli.
+          Refund dibatasi oleh jendela waktu yang ditentukan dan dilacak ke
+          struk asli.
         </p>
         <label className="field-group spacer-top">
-          <span className="field-label">Cari berdasarkan struk atau pelanggan</span>
+          <span className="field-label">
+            Cari berdasarkan struk atau pelanggan
+          </span>
           <input
             className="field"
             type="text"
@@ -2393,13 +2900,18 @@ function RefundsPage({
                             onClick={() =>
                               setQuantities((current) => ({
                                 ...current,
-                                [item.productId]: Math.max((current[item.productId] ?? 0) - 1, 0),
+                                [item.productId]: Math.max(
+                                  (current[item.productId] ?? 0) - 1,
+                                  0,
+                                ),
                               }))
                             }
                           >
                             -
                           </button>
-                          <span className="qty-stepper__value">{quantities[item.productId] ?? 0}</span>
+                          <span className="qty-stepper__value">
+                            {quantities[item.productId] ?? 0}
+                          </span>
                           <button
                             type="button"
                             className="qty-stepper__button"
@@ -2432,13 +2944,20 @@ function RefundsPage({
                   onChange={(event) => setReason(event.target.value)}
                 />
               </label>
-              <button type="button" className="button button--primary" onClick={processRefund}>
+              <button
+                type="button"
+                className="button button--primary"
+                onClick={processRefund}
+              >
                 Proses Refund
               </button>
-              {notice ? <article className="notice notice--success">{notice}</article> : null}
+              {notice ? (
+                <article className="notice notice--success">{notice}</article>
+              ) : null}
               {refunds.length ? (
                 <article className="notice notice--success">
-                  Refund terakhir: {refunds[0].saleReceiptNumber} - {formatCurrency(refunds[0].total)}
+                  Refund terakhir: {refunds[0].saleReceiptNumber} -{" "}
+                  {formatCurrency(refunds[0].total)}
                 </article>
               ) : null}
             </div>
@@ -2446,7 +2965,9 @@ function RefundsPage({
         ) : (
           <div className="empty-state spacer-top">
             <h3 className="empty-state__title">Pilih transaksi lebih dulu</h3>
-            <p className="empty-state__copy">Form refund akan aktif setelah sale dipilih.</p>
+            <p className="empty-state__copy">
+              Form refund akan aktif setelah sale dipilih.
+            </p>
           </div>
         )}
       </section>
@@ -2486,9 +3007,14 @@ function ReportsPage({
   const [periodError, setPeriodError] = useState("");
 
   const salesTotal = sales.reduce((total, sale) => total + sale.total, 0);
-  const refundTotal = refunds.reduce((total, refund) => total + refund.total, 0);
+  const refundTotal = refunds.reduce(
+    (total, refund) => total + refund.total,
+    0,
+  );
   const netRevenue = Math.max(salesTotal - refundTotal, 0);
-  const averageTransactionValue = sales.length ? Math.round(salesTotal / sales.length) : 0;
+  const averageTransactionValue = sales.length
+    ? Math.round(salesTotal / sales.length)
+    : 0;
   const productCostById = new Map<string, number>(
     products.map((product) => [product.id, product.netPrice ?? 0]),
   );
@@ -2502,30 +3028,84 @@ function ReportsPage({
     0,
   );
   const stockMovement = sales.reduce(
-    (total, sale) => total + sale.items.reduce((sum, item) => sum + item.quantity, 0),
+    (total, sale) =>
+      total + sale.items.reduce((sum, item) => sum + item.quantity, 0),
     0,
   );
 
   const topProductCounts: Record<string, number> = {};
   sales.forEach((sale) => {
     sale.items.forEach((item) => {
-      topProductCounts[item.productName] = (topProductCounts[item.productName] ?? 0) + item.quantity;
+      topProductCounts[item.productName] =
+        (topProductCounts[item.productName] ?? 0) + item.quantity;
     });
   });
   const topProducts = Object.entries(topProductCounts)
     .sort((left, right) => right[1] - left[1])
     .slice(0, 3);
   const topProduct = topProducts[0]?.[0] ?? "SEDAAP MIE GR 91GR (40)";
-  const isPeriodValid = Boolean(periodStart && periodEnd && periodStart <= periodEnd);
+  const forecastRows = products
+    .map((product) => {
+      const quantity = topProductCounts[product.name] ?? 0;
+      const stock = product.stock;
+      const restockThreshold = product.lowStockThreshold;
+      const warningThreshold = Math.ceil(restockThreshold * 1.5);
+      const status =
+        stock <= restockThreshold
+          ? "Restock"
+          : stock <= warningThreshold
+            ? "Perlu Dipantau"
+            : "Aman";
+      const statusTone =
+        stock <= restockThreshold
+          ? "danger"
+          : stock <= warningThreshold
+            ? "warning"
+            : "success";
+      const suggestedRestock =
+        stock <= restockThreshold
+          ? Math.max(DEFAULT_PRODUCT_STOCK - stock, Math.ceil(quantity * 2.5))
+          : 0;
+
+      return {
+        productId: product.id,
+        productName: product.name,
+        quantity,
+        stock,
+        restockThreshold,
+        status,
+        statusTone,
+        suggestedRestock,
+        meterValue: Math.min(
+          Math.round((stock / DEFAULT_PRODUCT_STOCK) * 100),
+          100,
+        ),
+      };
+    })
+    .sort((left, right) => {
+      const priority = { danger: 0, warning: 1, success: 2 };
+      return (
+        priority[left.statusTone] - priority[right.statusTone] ||
+        left.stock - right.stock ||
+        right.quantity - left.quantity
+      );
+    });
+  const isPeriodValid = Boolean(
+    periodStart && periodEnd && periodStart <= periodEnd,
+  );
 
   function generateReport() {
     if (!periodStart || !periodEnd) {
-      setPeriodError("Pilih tanggal mulai dan tanggal selesai terlebih dahulu.");
+      setPeriodError(
+        "Pilih tanggal mulai dan tanggal selesai terlebih dahulu.",
+      );
       return;
     }
 
     if (periodStart > periodEnd) {
-      setPeriodError("Tanggal mulai tidak boleh lebih besar dari tanggal selesai.");
+      setPeriodError(
+        "Tanggal mulai tidak boleh lebih besar dari tanggal selesai.",
+      );
       return;
     }
 
@@ -2599,10 +3179,16 @@ function ReportsPage({
           </div>
           <div className="field-group">
             <span className="field-label">&nbsp;</span>
-            <span className="button button--secondary button--full">Buat Perkiraan</span>
+            <span className="button button--secondary button--full">
+              Buat Perkiraan
+            </span>
           </div>
         </div>
-        {periodError ? <article className="notice notice--error spacer-top">{periodError}</article> : null}
+        {periodError ? (
+          <article className="notice notice--error spacer-top">
+            {periodError}
+          </article>
+        ) : null}
       </section>
       <section className="stat-grid">
         <article className="stat-card surface--accent">
@@ -2629,11 +3215,15 @@ function ReportsPage({
         </article>
         <article className="stat-card surface--accent">
           <div className="stat-label">Rata-rata Belanja</div>
-          <div className="stat-value">{formatCurrency(averageTransactionValue)}</div>
+          <div className="stat-value">
+            {formatCurrency(averageTransactionValue)}
+          </div>
         </article>
         <article className="stat-card surface">
           <div className="stat-label">Estimasi Laba Kotor</div>
-          <div className="stat-value">{formatCurrency(estimatedGrossProfit)}</div>
+          <div className="stat-value">
+            {formatCurrency(estimatedGrossProfit)}
+          </div>
         </article>
       </section>
       {generated ? (
@@ -2650,13 +3240,20 @@ function ReportsPage({
             </article>
             <article className="summary-box surface">
               <div className="stat-label">Total Penjualan</div>
-              <div className="small-value" style={{ color: "var(--color-primary)" }}>
+              <div
+                className="small-value"
+                style={{ color: "var(--color-primary)" }}
+              >
                 {formatCurrency(salesTotal)}
               </div>
             </article>
           </div>
           <div className="spacer-top">
-            <button type="button" className="button button--primary" onClick={() => setGenerated(false)}>
+            <button
+              type="button"
+              className="button button--primary"
+              onClick={() => setGenerated(false)}
+            >
               Simpan Laporan
             </button>
           </div>
@@ -2695,7 +3292,7 @@ function ReportsPage({
       </section>
       <section className="panel">
         <h2 className="card-title" style={{ fontSize: 28 }}>
-          Snapshot Perkiraan
+          Snapshot Forecasting
         </h2>
         <div className="table-shell spacer-top">
           <table className="data-table">
@@ -2704,16 +3301,41 @@ function ReportsPage({
                 <th>Dibuat</th>
                 <th>Produk</th>
                 <th>Total Terjual</th>
+                <th>Stok Saat Ini</th>
+                <th>Minimum</th>
+                <th>Status Forecast</th>
                 <th>Saran Restok</th>
               </tr>
             </thead>
             <tbody>
-              {topProducts.map(([productName, quantity]) => (
-                <tr key={productName}>
+              {forecastRows.map((row) => (
+                <tr key={row.productId}>
                   <td>{formatShortDate(new Date().toISOString())}</td>
-                  <td>{productName}</td>
-                  <td>{quantity} item</td>
-                  <td>{Math.ceil(quantity * 2.5)}</td>
+                  <td>{row.productName}</td>
+                  <td>{row.quantity} item</td>
+                  <td>{row.stock} item</td>
+                  <td>{row.restockThreshold} item</td>
+                  <td>
+                    <div
+                      className={`forecast-meter forecast-meter--${row.statusTone}`}
+                    >
+                      <div className="forecast-meter__track">
+                        <span
+                          className="forecast-meter__fill"
+                          style={{ width: `${row.meterValue}%` }}
+                        />
+                      </div>
+                      <div className="forecast-meter__meta">
+                        <span>{row.status}</span>
+                        <span>{row.meterValue}%</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    {row.suggestedRestock
+                      ? `Restock ${row.suggestedRestock} item`
+                      : "Stok cukup"}
+                  </td>
                 </tr>
               ))}
             </tbody>

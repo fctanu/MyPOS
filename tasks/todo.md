@@ -142,6 +142,233 @@
 - Verification passed with `npm run lint` and `npm run build`.
 - In-app browser verification confirmed the scoped product-card fit rules are active.
 
+# Keep Old Color Palette Plan
+
+## Plan
+- [x] Confirm the old palette hex values from the shared CSS tokens.
+- [x] Remove the theme-change button and state from the protected shell.
+- [x] Remove the new palette override so the app always uses the old palette.
+- [x] Verify with type checking/build and source search.
+- [x] Record the result in this review section.
+
+## Review
+- The app now uses only the old palette from `html-css-version/css/base.css`.
+- Removed the sidebar `Ganti Tema` button and the `theme-new` state/class toggle.
+- Removed the `body.theme-new` CSS token override from `src/index.css`.
+- Verification passed with `npm run lint`, `npm run build`, and source search for the removed theme references.
+
+# Keep Sidebar Footer Fixed Plan
+
+## Plan
+- [x] Inspect the shared shell/sidebar CSS and protected page layout.
+- [x] Constrain the desktop app shell to the viewport.
+- [x] Keep the left sidebar footer fixed at the bottom of the sidebar.
+- [x] Move vertical scrolling to the right-side content area.
+- [x] Preserve the existing mobile single-column layout.
+- [x] Verify with type checking/build and browser layout checks.
+- [x] Record the result in this review section.
+
+## Review
+- The desktop app shell now uses a fixed `100vh` frame with hidden shell overflow.
+- The sidebar stays full-height, with its header and footer fixed inside the left column.
+- The sidebar nav can scroll independently if it overflows.
+- The right-side `.page-content` is now the vertical scrolling region, so page scrolling no longer pushes the sidebar footer off-screen.
+- Mobile widths keep the existing single-column natural page scroll behavior.
+- Verification passed with `npm run lint` and `npm run build`.
+- Browser checks on `/refunds`, `/products`, and `/reports` confirmed document height equals viewport height, the sidebar footer remains at the viewport bottom, and `.page-content` owns vertical scrolling.
+
+# Improve Sidebar Toggle Plan
+
+## Plan
+- [x] Inspect the current sidebar toggle icon, markup, and CSS.
+- [x] Replace the toggle glyph with a clearer collapse/expand icon.
+- [x] Improve header alignment and button styling in expanded and collapsed states.
+- [x] Verify with type checking/build and browser layout checks.
+- [x] Record the result in this review section.
+
+## Review
+- Replaced the old panel-box glyph with clearer collapse/expand icons that show the sidebar direction.
+- Enlarged the toggle to a 44px circular control with token-based blue styling, subtle inset highlight, shadow, hover state, and keyboard focus ring.
+- Improved header spacing so the toggle no longer feels cramped against the brand text.
+- Centered the toggle cleanly in the collapsed 84px sidebar.
+- Verification passed with `npm run lint` and `npm run build`.
+- Browser verification confirmed the expanded button is 44x44 with a 25px gap from the brand, and the collapsed button is centered with `aria-label="Buka sidebar"`.
+
+# Simplify Sidebar Toggle Icon Plan
+
+## Plan
+- [x] Replace the sidebar toggle glyphs with plain left/right arrows.
+- [x] Verify with type checking/build and browser icon state checks.
+- [x] Record the result in this review section.
+
+## Review
+- Simplified the sidebar toggle to plain arrow icons only.
+- Expanded sidebar now shows a left arrow for closing.
+- Collapsed sidebar now shows a right arrow for opening.
+- Verification passed with `npm run lint` and `npm run build`.
+- Browser verification confirmed each state renders exactly two SVG paths for the simple arrow glyph.
+
+# Improve Sidebar Brand Lockup Plan
+
+## Plan
+- [x] Split the sidebar brand into a two-line lockup.
+- [x] Style `MyPOS` as the primary line and `Sumber Kasih` as a smaller secondary line.
+- [x] Verify with type checking/build and browser layout checks.
+- [x] Record the result in this review section.
+
+## Review
+- Replaced the single-line `MyPOS Sumber Kasih` title with a two-line brand lockup.
+- `MyPOS` remains the primary display line; `Sumber Kasih` is now a smaller secondary line.
+- Removed the truncation behavior for the expanded sidebar brand so `Sumber Kasih` no longer appears as `Sumb...`.
+- Verification passed with `npm run lint` and `npm run build`.
+- Browser verification confirmed both brand lines fit without overflow and maintain clear spacing from the sidebar toggle.
+
+# Expand Product List Editing Plan
+
+## Plan
+- [x] Inspect the current Daftar Produk table and product state shape.
+- [x] Show every product row instead of only the first 10.
+- [x] Add a right-aligned Edit toggle beside the Daftar Produk heading.
+- [x] Enable inline editing for product information.
+- [x] Verify with type checking/build and browser row/action checks.
+- [x] Record the result in this review section.
+
+## Review
+- `Daftar Produk` now renders the full product list instead of `products.slice(0, 10)`.
+- Added a right-aligned `Edit` button beside `Daftar Produk`; it toggles to `Selesai` while editing.
+- Edit mode enables inline editing for product name, category, net price, grosir price, retail price, and stock.
+- Product name edits also regenerate the SKU from the new name.
+- Verification passed with `npm run lint` and `npm run build`.
+- Browser verification confirmed `Daftar Produk (87)` renders 87 rows and edit mode exposes editable controls for every row.
+
+# Improve Category Form Inputs Plan
+
+## Plan
+- [x] Inspect the shared input and category form styling.
+- [x] Add scoped visual styling for the category name and description fields.
+- [x] Verify with type checking/build and browser computed-style checks.
+- [x] Record the result in this review section.
+
+## Review
+- Added scoped visual styling for `#category-form` so the category inputs feel more polished without changing every form in the app.
+- `Nama Kategori` and `Deskripsi` now use a soft white/blue filled surface, subtle border, and shadow.
+- Labels in the category form now read as stronger uppercase field labels.
+- Focus state now uses the old palette primary blue with a visible ring and soft shadow.
+- Verification passed with `npm run lint` and `npm run build`.
+- Browser verification confirmed the new background, border, label transform, and focus styles are active on the category form fields.
+
+# Improve Category Cancel Button Plan
+
+## Plan
+- [x] Scope the cancel button visual change to the category form.
+- [x] Restyle the `Batal` ghost button so it separates from the soft panel background.
+- [x] Verify with type checking/build and browser computed-style checks.
+- [x] Record the result in this review section.
+
+## Review
+- Scoped the `Batal` button styling to `#category-form .button--ghost`.
+- Changed the button to a white neutral surface with a slate border/text color and subtle shadow so it no longer blends into the soft panel background.
+- Added a hover state that brightens the surface and darkens the text.
+- Verification passed with `npm run lint` and `npm run build`.
+- Browser verification confirmed the `Batal` button uses the new background, border, color, and shadow.
+
+# Improve Forecast Snapshot Meter Plan
+
+## Plan
+- [x] Inspect the current `Snapshot Perkiraan` report table.
+- [x] Rename the section to `Snapshot Forecasting`.
+- [x] Replace the plain restock value with a stock-health meter per product.
+- [x] Add red/orange/green status thresholds around the restock threshold of 50.
+- [x] Verify with type checking/build and browser checks.
+- [x] Record the result in this review section.
+
+## Review
+- Renamed `Snapshot Perkiraan` to `Snapshot Forecasting`.
+- Replaced the plain `Saran Restok` number with a stock-health meter per forecast product.
+- Added current stock, status, and restock suggestion columns.
+- Forecast status is red `Restock` when stock is below 50, orange `Perlu Dipantau` for stock 50-69, and green `Aman` for stock 70+.
+- Restock suggestions now show `Restock N item` only when stock is below 50; otherwise they show `Stok cukup`.
+- Verification passed with `npm run lint` and `npm run build`.
+- Browser verification confirmed the renamed heading, 3 forecast rows, green success meters for healthy products, and red restock meter for a product below 50.
+
+# Set Forecast Stock Threshold Plan
+
+## Plan
+- [x] Inspect product seed stock and current forecast status logic.
+- [x] Set every seeded/imported product stock baseline to 50.
+- [x] Calculate restock threshold as 30% of baseline stock.
+- [x] Mark products as `Restock` when stock is at or below the calculated threshold.
+- [x] Sort restock forecast rows to the top.
+- [x] Verify with type checking/build and browser checks.
+- [x] Record the result in this review section.
+
+## Review
+- Added stock constants so the default product stock is `50` and the calculated restock threshold is `ceil(50 * 30%) = 15`.
+- Seeded products and imported products now start with stock `50` and low-stock threshold `15`.
+- Forecasting now uses each product's calculated low-stock threshold instead of a hardcoded status cutoff.
+- Products with stock at or below threshold are marked `Restock`; warning status applies up to 1.5x the threshold; healthy stock is `Aman`.
+- Forecast rows are sorted with `Restock` first, then warning, then healthy rows.
+- Added a `Threshold` column to make the 30% calculation visible in the report.
+- Verification passed with `npm run lint` and `npm run build`.
+- Browser verification confirmed the stock table has 87 rows with unique stock `[50]` and unique threshold `[15]`, and the forecasting table places the current `Restock` row first.
+
+# Randomize Forecast Stock Range Plan
+
+## Plan
+- [x] Inspect current stock seed, transaction stock display, and forecasting stock lookup.
+- [x] Seed products with deterministic stock values from 30-50 in multiples of 5.
+- [x] Keep imported product stock at 50.
+- [x] Calculate each product restock threshold as 30% of its seeded stock.
+- [x] Ensure forecasting uses the same product stock/threshold data as transactions.
+- [x] Verify with type checking/build and browser checks.
+- [x] Record the result in this review section.
+
+## Review
+- Seeded product stock now cycles deterministically through `30`, `35`, `40`, `45`, and `50`.
+- Imported products still start at stock `50`.
+- Each product's low-stock threshold is calculated as `ceil(stock * 30%)`, producing visible stock/threshold pairs `30:9`, `35:11`, `40:12`, `45:14`, and `50:15`.
+- Forecasting continues to read the same `products` state used by transactions, so stock changes in transactions affect report forecasting.
+- Fixed legacy seed transaction item references so forecasting no longer falls back to stock `0` for a sold product that is missing from the product list.
+- Verification passed with `npm run lint` and `npm run build`.
+- Browser verification confirmed transaction product cards show only stock values `[30,35,40,45,50]`, the stock table has 87 valid rows with matching 30% thresholds, and Snapshot Forecasting no longer contains fallback `0 item` rows.
+
+# Reset Quantity Forecast List Plan
+
+## Plan
+- [x] Inspect sidebar footer, stock reset helpers, and forecast row source.
+- [x] Add a sidebar `Reset Quantity` button above the owner area.
+- [x] Reset every product stock to the deterministic 30-50 range and recalculate minimum thresholds.
+- [x] Change forecast label from `Threshold` to `Minimum`.
+- [x] List every product in Snapshot Forecasting.
+- [x] Verify with type checking/build and browser checks.
+- [x] Record the result in this review section.
+
+## Review
+- Added a `Reset Quantity` button in the sidebar footer above the owner/session info.
+- The button resets all current products to the deterministic `30`, `35`, `40`, `45`, `50` stock pattern and recalculates each product's 30% minimum threshold.
+- `Snapshot Forecasting` now lists all products instead of only sold/top products.
+- Renamed the forecasting table column from `Threshold` to `Minimum`.
+- Forecast rows use stable product IDs as keys so duplicate product names render correctly.
+- Verification passed with `npm run lint` and `npm run build`.
+- Browser verification confirmed `Reset Quantity` appears above the owner area, Snapshot Forecasting has 87 rows, `Minimum` appears in the header, stock values are `[30,35,40,45,50]`, minimum values are `[9,11,12,14,15]`, and Reset Quantity restores stock after a transaction click changes it.
+
+# Auto Return After Receipt Print Plan
+
+## Plan
+- [x] Inspect the receipt print handler and transaction reset flow.
+- [x] Schedule a 5-second return to the initial transaction screen after `Cetak Struk`.
+- [x] Clear the pending return timer if the receipt screen is left early.
+- [x] Verify with type checking/build and browser flow checks.
+- [x] Record the result in this review section.
+
+## Review
+- Added a receipt return timer that starts after `Cetak Struk` successfully opens the print window.
+- The receipt status now tells the user the page will return to transactions in 5 seconds.
+- After 5 seconds, the flow calls `resetTransaction()` and returns to the initial customer lookup screen.
+- Pending return timers are cleared when the transaction is reset manually or the component unmounts.
+- Verification passed with `npm run lint` and `npm run build`.
+- Browser verification completed a transaction, clicked `Cetak Struk`, confirmed the 5-second return message, and confirmed the page returned to `Data Pelanggan` with the receipt screen gone after the timeout.
+
 # Deduct Stock On Cart Add Plan
 
 ## Plan
