@@ -1,6 +1,8 @@
+import { motion, AnimatePresence } from "motion/react";
 import {
   createContext,
   useContext,
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -18,6 +20,12 @@ import {
   useNavigate,
 } from "react-router-dom";
 import * as XLSX from "xlsx";
+
+type Toast = {
+  id: string;
+  message: string;
+  type: "success" | "error";
+};
 
 type Role = "owner" | "employee";
 type PaymentMethod = "cash" | "transfer";
@@ -76,6 +84,13 @@ type Sale = {
   pointsEarned: number;
 };
 
+type RefundItem = {
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+};
+
 type RefundRecord = {
   id: string;
   saleId: string;
@@ -83,6 +98,7 @@ type RefundRecord = {
   customerName: string;
   reason: string;
   total: number;
+  items: RefundItem[];
   createdAt: string;
 };
 
@@ -125,6 +141,8 @@ type AppContextValue = {
       | ReportSnapshot[]
       | ((current: ReportSnapshot[]) => ReportSnapshot[]),
   ) => void;
+  toasts: Toast[];
+  addToast: (message: string, type?: Toast["type"]) => void;
 };
 
 const DEFAULT_PRODUCT_STOCK = 50;
@@ -342,21 +360,21 @@ const productsSeed: Product[] = productSeedRows.map(
 
 const customersSeed: Customer[] = [
   {
-    id: "cus-1",
+    id: "CUST-0001",
     name: "Bu Yuni",
     phone: "0812-7000-1188",
     address: "Kebon Jeruk, Jakarta Barat",
     loyaltyPoints: 485,
   },
   {
-    id: "cus-2",
+    id: "CUST-0002",
     name: "Kios Rajawali",
     phone: "0812-4222-9988",
     address: "Cengkareng, Jakarta Barat",
     loyaltyPoints: 240,
   },
   {
-    id: "cus-3",
+    id: "CUST-0003",
     name: "Warung Sari",
     phone: "0812-1456-8877",
     address: "Palmerah, Jakarta Barat",
@@ -368,7 +386,7 @@ const salesSeed: Sale[] = [
   {
     id: "sale-1049",
     receiptNumber: "RCPT-1049",
-    customerId: "cus-1",
+    customerId: "CUST-0001",
     customerName: "Bu Yuni",
     customerPhone: "0812-7000-1188",
     total: 20250,
@@ -436,7 +454,7 @@ const salesSeed: Sale[] = [
   {
     id: "sale-1046",
     receiptNumber: "RCPT-1046",
-    customerId: "cus-2",
+    customerId: "CUST-0002",
     customerName: "Kios Rajawali",
     customerPhone: "0812-4222-9988",
     total: 18500,
@@ -465,7 +483,7 @@ const salesSeed: Sale[] = [
 
 const reportsSeed: ReportSnapshot[] = [
   {
-    id: "report-1",
+    id: "RPT-0001",
     createdAt: "2026-04-01T08:30:00+07:00",
     periodStart: "2026-03-01",
     periodEnd: "2026-03-31",
@@ -474,7 +492,7 @@ const reportsSeed: ReportSnapshot[] = [
     topProduct: "SEDAAP MIE GR 91GR (40)",
   },
   {
-    id: "report-2",
+    id: "RPT-0002",
     createdAt: "2026-03-01T08:20:00+07:00",
     periodStart: "2026-02-01",
     periodEnd: "2026-02-29",
@@ -556,12 +574,28 @@ function formatReceiptTime(value: string) {
     .replaceAll(":", ".");
 }
 
+const REFUND_DAYS_LIMIT = 3;
+
+function isWithinRefundWindow(createdAt: string) {
+  const saleDate = new Date(createdAt);
+  const now = new Date();
+  const diffMs = now.getTime() - saleDate.getTime();
+  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+  return diffDays <= REFUND_DAYS_LIMIT;
+}
+
+function paymentMethodLabel(method: PaymentMethod) {
+  return method === "cash" ? "Tunai" : "Transfer QRIS";
+}
+
 function buildReceiptHtml({
   sale,
   storeName,
+  employeeName,
 }: {
   sale: Sale;
   storeName: string;
+  employeeName: string;
 }) {
   const rows = sale.items
     .map(
@@ -658,6 +692,8 @@ function buildReceiptHtml({
       <div class="divider">================================</div>
       <div class="center store-name">${escapeHtml(storeName)}</div>
       <div class="center">${escapeHtml(sale.receiptNumber)}</div>
+      <div class="center" style="margin-top:4px">${escapeHtml(employeeName)}</div>
+      <div class="center" style="margin-top:2px;color:#475569">${escapeHtml(paymentMethodLabel(sale.paymentMethod))}</div>
       <div class="divider">================================</div>
       <div class="meta">
         <div>Tanggal: ${escapeHtml(formatReceiptDate(sale.createdAt))}</div>
@@ -696,7 +732,7 @@ function buildReceiptHtml({
 </html>`;
 }
 
-function printSaleReceipt(sale: Sale) {
+function printSaleReceipt(sale: Sale, employeeName: string) {
   const printWindow = window.open("", "mypos-receipt", "width=420,height=720");
   if (!printWindow) {
     throw new Error(
@@ -709,6 +745,7 @@ function printSaleReceipt(sale: Sale) {
     buildReceiptHtml({
       sale,
       storeName: STORE_NAME,
+      employeeName,
     }),
   );
   printWindow.document.close();
@@ -935,9 +972,27 @@ function AppProvider({ children }: { children: ReactNode }) {
   const [customers, setCustomersState] = useState<Customer[]>(customersSeed);
   const [categories, setCategoriesState] = useState<Category[]>(categoriesSeed);
   const [products, setProductsState] = useState<Product[]>(productsSeed);
-  const [sales, setSalesState] = useState<Sale[]>(salesSeed);
-  const [refunds, setRefundsState] = useState<RefundRecord[]>([]);
+  const [sales, setSalesState] = useState<Sale[]>(() => {
+    const raw = window.localStorage.getItem("mypos-sales");
+    return raw ? (JSON.parse(raw) as Sale[]) : salesSeed;
+  });
+  const [refunds, setRefundsState] = useState<RefundRecord[]>(() => {
+    const raw = window.localStorage.getItem("mypos-refunds");
+    return raw ? (JSON.parse(raw) as RefundRecord[]) : [];
+  });
   const [reports, setReportsState] = useState<ReportSnapshot[]>(reportsSeed);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  const addToast = useCallback(
+    (message: string, type: Toast["type"] = "success") => {
+      const id = makeId("toast");
+      setToasts((current) => [...current, { id, message, type }]);
+      setTimeout(() => {
+        setToasts((current) => current.filter((t) => t.id !== id));
+      }, 4000);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (session) {
@@ -946,6 +1001,14 @@ function AppProvider({ children }: { children: ReactNode }) {
       window.localStorage.removeItem("mypos-session");
     }
   }, [session]);
+
+  useEffect(() => {
+    window.localStorage.setItem("mypos-sales", JSON.stringify(sales));
+  }, [sales]);
+
+  useEffect(() => {
+    window.localStorage.setItem("mypos-refunds", JSON.stringify(refunds));
+  }, [refunds]);
 
   const value: AppContextValue = {
     session,
@@ -994,6 +1057,8 @@ function AppProvider({ children }: { children: ReactNode }) {
           ? (updater as (value: ReportSnapshot[]) => ReportSnapshot[])(current)
           : updater,
       ),
+    toasts,
+    addToast,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
@@ -1005,6 +1070,28 @@ function useAppModel() {
     throw new Error("App context is missing.");
   }
   return context;
+}
+
+function ToastContainer() {
+  const { toasts } = useAppModel();
+  return (
+    <div className="toast-container">
+      <AnimatePresence>
+        {toasts.map((toast) => (
+          <motion.div
+            key={toast.id}
+            className={`toast toast--${toast.type}`}
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+          >
+            {toast.message}
+          </motion.div>
+        ))}
+      </AnimatePresence>
+    </div>
+  );
 }
 
 function ProtectedPage({
@@ -1022,6 +1109,7 @@ function ProtectedPage({
     setSidebarCollapsed,
     setSession,
     setProducts,
+    setRefunds,
   } = useAppModel();
   const location = useLocation();
   const [now, setNow] = useState(() => new Date());
@@ -1048,11 +1136,7 @@ function ProtectedPage({
         <aside className={sidebarClass}>
           <div className="sidebar__header">
             <div className="sidebar__brand">
-              <p className="sidebar__brand-kicker">POS Lokal</p>
-              <h1 className="sidebar__brand-title sidebar__brand-title--small">
-                <span>MyPOS</span>
-                <span>Sumber Kasih</span>
-              </h1>
+              <img className="sidebar__logo" src="/logo.png.jpeg" alt="MyPOS Sumber Kasih" />
             </div>
             <button
               type="button"
@@ -1086,7 +1170,7 @@ function ProtectedPage({
                 <span className="nav-link__icon">
                   <RotateIcon />
                 </span>
-                <span className="nav-link__label">Refund</span>
+                <span className="nav-link__label">Refund &amp; History</span>
               </NavLink>
               <NavLink
                 to="/products"
@@ -1119,7 +1203,10 @@ function ProtectedPage({
             <button
               type="button"
               className="button button--secondary button--full sidebar__reset-button"
-              onClick={() => setProducts(resetProductQuantities)}
+              onClick={() => {
+                setProducts(resetProductQuantities);
+                setRefunds([]);
+              }}
             >
               Reset Quantity
             </button>
@@ -1147,6 +1234,7 @@ function ProtectedPage({
         <div className="page-area">
           <header className="topbar">
             <h2 className="topbar__title">{title}</h2>
+            <ToastContainer />
             <div className="topbar__clock">
               <div className="topbar__time">{formatClockTime(now)}</div>
               <div className="topbar__date">
@@ -1178,8 +1266,7 @@ function LoginPage() {
       <main className="login-shell">
         <section className="login-card">
           <div className="login-card__head">
-            <p className="eyebrow">POS Lokal</p>
-            <h1 className="card-title">MyPOS Sumber Kasih</h1>
+            <img className="login__logo" src="/logo.png.jpeg" alt="MyPOS Sumber Kasih" />
             <p className="card-subtitle">Pilih peran Anda untuk masuk</p>
           </div>
           <div className="form-stack">
@@ -1278,6 +1365,7 @@ function TransactionsPage({
   setStep: (step: "lookup" | "order" | "payment" | "receipt") => void;
 }) {
   const {
+    session,
     customers,
     setCustomers,
     products,
@@ -1293,12 +1381,13 @@ function TransactionsPage({
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
   const [newCustomerAddress, setNewCustomerAddress] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(
-    "cus-1",
+    "CUST-0001",
   );
   const [productQuery, setProductQuery] = useState("");
   const [activeCategoryId, setActiveCategoryId] = useState<string>("all");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [usePoints, setUsePoints] = useState(true);
+  const [ownerId, setOwnerId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [completedSale, setCompletedSale] = useState<Sale | null>(null);
   const [receiptMessage, setReceiptMessage] = useState(
@@ -1483,8 +1572,12 @@ function TransactionsPage({
     if (!newCustomerName.trim()) {
       return;
     }
+    const maxNum = customers.reduce((max, c) => {
+      const num = parseInt(c.id.replace("CUST-", ""), 10);
+      return isNaN(num) ? max : Math.max(max, num);
+    }, 0);
     const customer: Customer = {
-      id: makeId("cus"),
+      id: `CUST-${String(maxNum + 1).padStart(4, "0")}`,
       name: newCustomerName.trim(),
       phone: newCustomerPhone.trim() || undefined,
       address: newCustomerAddress.trim() || undefined,
@@ -1568,7 +1661,7 @@ function TransactionsPage({
     }
     setSearchCustomer("");
     setShowCreateCustomer(false);
-    setSelectedCustomerId("cus-1");
+    setSelectedCustomerId("CUST-0001");
     setProductQuery("");
     setActiveCategoryId("all");
     restoreCartStock(cart);
@@ -1586,7 +1679,7 @@ function TransactionsPage({
     }
 
     try {
-      printSaleReceipt(completedSale);
+      printSaleReceipt(completedSale, session?.name ?? "");
       setPrintStatus(
         "Jendela print struk dibuka. Halaman akan kembali ke transaksi dalam 5 detik.",
       );
@@ -1630,6 +1723,7 @@ function TransactionsPage({
                     <tr>
                       <th>Pelanggan</th>
                       <th>Telepon</th>
+                      <th>Customer ID</th>
                       <th>Poin</th>
                       <th></th>
                     </tr>
@@ -1639,6 +1733,7 @@ function TransactionsPage({
                       <tr key={customer.id}>
                         <td>{customer.name}</td>
                         <td>{customer.phone ?? "-"}</td>
+                        <td>{customer.id}</td>
                         <td>{customer.loyaltyPoints}</td>
                         <td className="text-right">
                           <button
@@ -1812,7 +1907,7 @@ function TransactionsPage({
                 }
               >
                 <option value="cash">Tunai</option>
-                <option value="transfer">Transfer</option>
+                <option value="transfer">Transfer QRIS</option>
               </select>
             </label>
             <button
@@ -1951,6 +2046,8 @@ function TransactionsPage({
                   type="text"
                   value={productQuery}
                   onChange={(event) => setProductQuery(event.target.value)}
+                  placeholder="Cari produk..."
+                  autoComplete="off"
                 />
               </div>
               {selectedCustomer ? (
@@ -2044,11 +2141,20 @@ function TransactionsPage({
             <h2 className="card-title" style={{ fontSize: 30 }}>
               Pesanan
             </h2>
+            <input
+              className="field owner-id-input"
+              type="password"
+              placeholder="Owner ID"
+              value={ownerId}
+              onChange={(event) => setOwnerId(event.target.value)}
+              style={{ borderColor: ownerId && ownerId !== "sumberkasih" ? "#dc2626" : undefined }}
+            />
           </div>
           <button
             type="button"
-            className="button button--ghost"
+            className={`button button--ghost${ownerId !== "sumberkasih" ? " button--disabled-orange" : ""}`}
             onClick={clearCart}
+            disabled={ownerId !== "sumberkasih"}
           >
             Kosongkan
           </button>
@@ -2064,8 +2170,9 @@ function TransactionsPage({
                   </div>
                   <button
                     type="button"
-                    className="button button--ghost"
+                    className={`button button--ghost${ownerId !== "sumberkasih" ? " button--disabled-orange" : ""}`}
                     onClick={() => updateQuantity(item.product.id, 0)}
+                    disabled={ownerId !== "sumberkasih"}
                   >
                     Hapus
                   </button>
@@ -2075,10 +2182,11 @@ function TransactionsPage({
                   <div className="qty-stepper">
                     <button
                       type="button"
-                      className="qty-stepper__button"
+                      className={`qty-stepper__button${ownerId !== "sumberkasih" ? " button--disabled-orange" : ""}`}
                       onClick={() =>
                         updateQuantity(item.product.id, item.quantity - 1)
                       }
+                      disabled={ownerId !== "sumberkasih"}
                     >
                       -
                     </button>
@@ -2766,22 +2874,34 @@ function RefundsPage({
   selectedSaleId: string | null;
   setSelectedSaleId: (value: string | null) => void;
 }) {
-  const { sales, products, setProducts, refunds, setRefunds } = useAppModel();
+  const {
+    sales,
+    setSales,
+    products,
+    setProducts,
+    refunds,
+    setRefunds,
+    addToast,
+  } = useAppModel();
   const [search, setSearch] = useState("");
   const [reason, setReason] = useState("Keluhan pelanggan");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
-  const [notice, setNotice] = useState("");
+  const [ownerId, setOwnerId] = useState("");
 
-  const filteredSales = sales.filter((sale) => {
-    const query = search.trim().toLowerCase();
-    if (!query) return true;
-    return (
-      sale.receiptNumber.toLowerCase().includes(query) ||
-      sale.customerName.toLowerCase().includes(query)
-    );
-  });
+  const filteredSales = sales
+    .filter((sale) => {
+      const query = search.trim().toLowerCase();
+      if (!query) return true;
+      return (
+        sale.receiptNumber.toLowerCase().includes(query) ||
+        sale.customerName.toLowerCase().includes(query)
+      );
+    })
+    .map((sale) => ({ ...sale, refundable: isWithinRefundWindow(sale.createdAt) }));
 
   const selectedSale = sales.find((sale) => sale.id === selectedSaleId) ?? null;
+  const selectedSaleRefundable =
+    selectedSale && isWithinRefundWindow(selectedSale.createdAt);
 
   function processRefund() {
     if (!selectedSale) return;
@@ -2797,23 +2917,54 @@ function RefundsPage({
       current.map((product) => {
         const quantity = quantities[product.id] ?? 0;
         return quantity > 0
-          ? { ...product, stock: product.stock + quantity }
+          ? { ...product, stock: Math.max(product.stock - quantity, 0) }
           : product;
       }),
     );
-    setRefunds((current) => [
-      {
-        id: makeId("refund"),
-        saleId: selectedSale.id,
-        saleReceiptNumber: selectedSale.receiptNumber,
-        customerName: selectedSale.customerName,
-        reason,
-        total,
-        createdAt: new Date().toISOString(),
-      },
-      ...current,
-    ]);
-    setNotice("Refund berhasil - pengembalian dana telah diproses.");
+    setSales((current) =>
+      current.map((sale) => {
+        if (sale.id !== selectedSale.id) return sale;
+        const updatedItems = sale.items.map((item) => {
+          const refundQty = quantities[item.productId] ?? 0;
+          if (refundQty <= 0) return item;
+          const newQty = item.quantity - refundQty;
+          return {
+            ...item,
+            quantity: newQty,
+            subtotal: newQty > 0 ? item.unitPrice * newQty : 0,
+          };
+        });
+        const newTotal = updatedItems.reduce(
+          (sum, item) => sum + item.subtotal,
+          0,
+        );
+        return { ...sale, items: updatedItems, total: newTotal };
+      }),
+    );
+    setQuantities({});
+    const refundItemList: RefundItem[] = refundItems.map((item) => {
+      const qty = quantities[item.productId] ?? 0;
+      return {
+        productName: item.productName,
+        quantity: qty,
+        unitPrice: item.unitPrice,
+        subtotal: item.unitPrice * qty,
+      };
+    });
+    const newRefund: RefundRecord = {
+      id: makeId("refund"),
+      saleId: selectedSale.id,
+      saleReceiptNumber: selectedSale.receiptNumber,
+      customerName: selectedSale.customerName,
+      reason,
+      total,
+      items: refundItemList,
+      createdAt: new Date().toISOString(),
+    };
+    setRefunds((current) => [newRefund, ...current]);
+    addToast(
+      `Refund berhasil - pengembalian dana telah diproses.\nRefund terakhir: ${newRefund.saleReceiptNumber} - ${formatCurrency(newRefund.total)}`,
+    );
   }
 
   return (
@@ -2856,10 +3007,12 @@ function RefundsPage({
                   <td className="text-right">
                     <button
                       type="button"
-                      className="button button--ghost"
+                      className={`button button--ghost${!sale.refundable ? " button--disabled-orange" : ""}`}
                       onClick={() => setSelectedSaleId(sale.id)}
+                      disabled={!sale.refundable}
+                      title={sale.refundable ? "" : "Melebihi batas 3 hari"}
                     >
-                      Pilih
+                      {sale.refundable ? "Pilih" : "Kadaluwarsa"}
                     </button>
                   </td>
                 </tr>
@@ -2870,13 +3023,20 @@ function RefundsPage({
       </section>
       <section className="panel">
         <h2 className="card-title" style={{ fontSize: 30 }}>
-          Form Refund
+          {selectedSale
+            ? `${selectedSale.receiptNumber} - ${selectedSale.customerName}`
+            : "Form Refund"}
         </h2>
         <p className="section-subtitle">
           Pilih kuantitas per item lalu kirim sebagai satu catatan refund.
         </p>
         {selectedSale ? (
           <>
+            {!selectedSaleRefundable ? (
+              <article className="notice notice--error spacer-top">
+                Struk ini sudah melewati batas refund 3 hari.
+              </article>
+            ) : null}
             <div className="table-shell spacer-top">
               <table className="data-table">
                 <thead>
@@ -2944,22 +3104,30 @@ function RefundsPage({
                   onChange={(event) => setReason(event.target.value)}
                 />
               </label>
+              <label className="field-group">
+                <span className="field-label">Owner ID</span>
+                <input
+                  className="field"
+                  type="password"
+                  placeholder="Owner ID"
+                  value={ownerId}
+                  onChange={(event) => setOwnerId(event.target.value)}
+                  style={{
+                    borderColor:
+                      ownerId && ownerId !== "sumberkasih"
+                        ? "#dc2626"
+                        : undefined,
+                  }}
+                />
+              </label>
               <button
                 type="button"
-                className="button button--primary"
+                className={`button button--primary${ownerId !== "sumberkasih" ? " button--disabled-orange" : ""}`}
                 onClick={processRefund}
+                disabled={ownerId !== "sumberkasih"}
               >
                 Proses Refund
               </button>
-              {notice ? (
-                <article className="notice notice--success">{notice}</article>
-              ) : null}
-              {refunds.length ? (
-                <article className="notice notice--success">
-                  Refund terakhir: {refunds[0].saleReceiptNumber} -{" "}
-                  {formatCurrency(refunds[0].total)}
-                </article>
-              ) : null}
             </div>
           </>
         ) : (
@@ -2967,6 +3135,57 @@ function RefundsPage({
             <h3 className="empty-state__title">Pilih transaksi lebih dulu</h3>
             <p className="empty-state__copy">
               Form refund akan aktif setelah sale dipilih.
+            </p>
+          </div>
+        )}
+      </section>
+      <section className="panel">
+        <h2 className="card-title" style={{ fontSize: 30 }}>
+          Riwayat Refund
+        </h2>
+        <p className="section-subtitle">
+          Daftar refund yang berhasil diproses.
+        </p>
+        {refunds.length ? (
+          <div className="table-shell spacer-top">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Struk</th>
+                  <th>Pelanggan</th>
+                  <th>Item</th>
+                  <th>Alasan</th>
+                  <th>Total</th>
+                  <th>Waktu</th>
+                </tr>
+              </thead>
+              <tbody>
+                {refunds.map((refund) => (
+                  <tr key={refund.id}>
+                    <td>{refund.saleReceiptNumber}</td>
+                    <td>{refund.customerName}</td>
+                    <td>
+                      {refund.items?.map((item, i) => (
+                        <div key={i} className="refund-item-line">
+                          <span className="refund-item-line__name">{item.productName}</span>
+                          <span className="refund-item-line__qty">×{item.quantity}</span>
+                          <span className="refund-item-line__price">{formatCurrency(item.subtotal)}</span>
+                        </div>
+                      ))}
+                    </td>
+                    <td>{refund.reason}</td>
+                    <td>{formatCurrency(refund.total)}</td>
+                    <td>{formatShortDate(refund.createdAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="empty-state spacer-top">
+            <h3 className="empty-state__title">Belum ada refund</h3>
+            <p className="empty-state__copy">
+              Refund yang berhasil diproses akan muncul di sini.
             </p>
           </div>
         )}
@@ -3004,7 +3223,11 @@ function ReportsPage({
   const [periodStart, setPeriodStart] = useState("2026-03-01");
   const [periodEnd, setPeriodEnd] = useState("2026-03-31");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [reportProgress, setReportProgress] = useState(0);
   const [periodError, setPeriodError] = useState("");
+  const [forecastGenerated, setForecastGenerated] = useState(false);
+  const [isForecasting, setIsForecasting] = useState(false);
+  const [forecastProgress, setForecastProgress] = useState(0);
 
   const salesTotal = sales.reduce((total, sale) => total + sale.total, 0);
   const refundTotal = refunds.reduce(
@@ -3111,22 +3334,35 @@ function ReportsPage({
 
     setPeriodError("");
     setIsGenerating(true);
-    window.setTimeout(() => {
-      setIsGenerating(false);
-      setGenerated(true);
-      setReports((current) => [
-        {
-          id: makeId("report"),
-          createdAt: new Date().toISOString(),
-          periodStart,
-          periodEnd,
-          salesTotal,
-          refundTotal,
-          topProduct,
-        },
-        ...current,
-      ]);
-    }, 1200);
+    setReportProgress(0);
+    const interval = window.setInterval(() => {
+      setReportProgress((prev) => {
+        const next = prev + Math.random() * 15 + 2;
+        if (next >= 100) {
+          window.clearInterval(interval);
+          setIsGenerating(false);
+          setGenerated(true);
+          const maxRptNum = reports.reduce((max, r) => {
+            const num = parseInt(r.id.replace("RPT-", ""), 10);
+            return isNaN(num) ? max : Math.max(max, num);
+          }, 0);
+          setReports((current) => [
+            {
+              id: `RPT-${String(maxRptNum + 1).padStart(4, "0")}`,
+              createdAt: new Date().toISOString(),
+              periodStart,
+              periodEnd,
+              salesTotal,
+              refundTotal,
+              topProduct,
+            },
+            ...current,
+          ]);
+          return 100;
+        }
+        return next;
+      });
+    }, 200);
   }
 
   return (
@@ -3165,7 +3401,7 @@ function ReportsPage({
               }}
             />
           </label>
-          <div className="field-group">
+          <div className="field-group report-button-group">
             <span className="field-label">&nbsp;</span>
             <button
               type="button"
@@ -3174,14 +3410,63 @@ function ReportsPage({
               disabled={isGenerating}
               aria-disabled={!isPeriodValid || isGenerating}
             >
-              {isGenerating ? "Membuat laporan..." : "Generate Laporan Bulanan"}
+              {isGenerating ? "Memproses..." : "Generate Laporan Bulanan"}
             </button>
+            {isGenerating ? (
+              <div className="forecast-progress-wrapper spacer-top">
+                <div className="forecast-progress-bar">
+                  <div
+                    className="forecast-progress-bar__fill"
+                    style={{ width: `${reportProgress}%` }}
+                  />
+                </div>
+                <div className="forecast-progress-label">
+                  Generating Laporan Bulanan... {Math.round(reportProgress)}%
+                </div>
+              </div>
+            ) : null}
           </div>
-          <div className="field-group">
+          <div className="field-group forecast-button-group">
             <span className="field-label">&nbsp;</span>
-            <span className="button button--secondary button--full">
-              Buat Perkiraan
-            </span>
+            <button
+              type="button"
+              className="button button--forecast button--full"
+              onClick={() => {
+                if (isForecasting) return;
+                setIsForecasting(true);
+                setForecastProgress(0);
+                const interval = window.setInterval(() => {
+                  setForecastProgress((prev) => {
+                    const next = prev + Math.random() * 15 + 2;
+                    if (next >= 100) {
+                      window.clearInterval(interval);
+                      setIsForecasting(false);
+                      setForecastGenerated(true);
+                      return 100;
+                    }
+                    return next;
+                  });
+                }, 200);
+              }}
+              disabled={isForecasting}
+            >
+              {isForecasting
+                ? "Memproses..."
+                : "Generate Forecast"}
+            </button>
+            {isForecasting ? (
+              <div className="forecast-progress-wrapper spacer-top">
+                <div className="forecast-progress-bar">
+                  <div
+                    className="forecast-progress-bar__fill"
+                    style={{ width: `${forecastProgress}%` }}
+                  />
+                </div>
+                <div className="forecast-progress-label">
+                  Generating Forecast... {Math.round(forecastProgress)}%
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
         {periodError ? (
@@ -3190,6 +3475,8 @@ function ReportsPage({
           </article>
         ) : null}
       </section>
+      {generated ? (
+        <>
       <section className="stat-grid">
         <article className="stat-card surface--accent">
           <div className="stat-label">Total Penjualan</div>
@@ -3226,25 +3513,18 @@ function ReportsPage({
           </div>
         </article>
       </section>
+        </>
+      ) : null}
       {generated ? (
         <section className="panel surface--accent">
           <h2 className="card-title" style={{ fontSize: 28 }}>
             Laporan Berhasil Dibuat
           </h2>
-          <div className="two-col spacer-top">
+          <div className="spacer-top">
             <article className="summary-box surface">
               <div className="stat-label">Periode</div>
               <div className="card-copy">
                 {periodStart} s/d {periodEnd}
-              </div>
-            </article>
-            <article className="summary-box surface">
-              <div className="stat-label">Total Penjualan</div>
-              <div
-                className="small-value"
-                style={{ color: "var(--color-primary)" }}
-              >
-                {formatCurrency(salesTotal)}
               </div>
             </article>
           </div>
@@ -3267,6 +3547,7 @@ function ReportsPage({
           <table className="data-table">
             <thead>
               <tr>
+                <th>ID</th>
                 <th>Dibuat</th>
                 <th>Mulai</th>
                 <th>Selesai</th>
@@ -3278,6 +3559,7 @@ function ReportsPage({
             <tbody>
               {reports.map((report) => (
                 <tr key={report.id}>
+                  <td>{report.id}</td>
                   <td>{formatShortDate(report.createdAt)}</td>
                   <td>{report.periodStart}</td>
                   <td>{report.periodEnd}</td>
@@ -3290,58 +3572,60 @@ function ReportsPage({
           </table>
         </div>
       </section>
-      <section className="panel">
-        <h2 className="card-title" style={{ fontSize: 28 }}>
-          Snapshot Forecasting
-        </h2>
-        <div className="table-shell spacer-top">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Dibuat</th>
-                <th>Produk</th>
-                <th>Total Terjual</th>
-                <th>Stok Saat Ini</th>
-                <th>Minimum</th>
-                <th>Status Forecast</th>
-                <th>Saran Restok</th>
-              </tr>
-            </thead>
-            <tbody>
-              {forecastRows.map((row) => (
-                <tr key={row.productId}>
-                  <td>{formatShortDate(new Date().toISOString())}</td>
-                  <td>{row.productName}</td>
-                  <td>{row.quantity} item</td>
-                  <td>{row.stock} item</td>
-                  <td>{row.restockThreshold} item</td>
-                  <td>
-                    <div
-                      className={`forecast-meter forecast-meter--${row.statusTone}`}
-                    >
-                      <div className="forecast-meter__track">
-                        <span
-                          className="forecast-meter__fill"
-                          style={{ width: `${row.meterValue}%` }}
-                        />
-                      </div>
-                      <div className="forecast-meter__meta">
-                        <span>{row.status}</span>
-                        <span>{row.meterValue}%</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    {row.suggestedRestock
-                      ? `Restock ${row.suggestedRestock} item`
-                      : "Stok cukup"}
-                  </td>
+      {forecastGenerated ? (
+        <section className="panel">
+          <h2 className="card-title" style={{ fontSize: 28 }}>
+            Snapshot Forecasting
+          </h2>
+          <div className="table-shell spacer-top">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Dibuat</th>
+                  <th>Produk</th>
+                  <th>Total Terjual</th>
+                  <th>Stok Saat Ini</th>
+                  <th>Minimum</th>
+                  <th>Stock Status</th>
+                  <th>Saran Restok</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
+              </thead>
+              <tbody>
+                {forecastRows.map((row) => (
+                  <tr key={row.productId}>
+                    <td>{formatShortDate(new Date().toISOString())}</td>
+                    <td>{row.productName}</td>
+                    <td>{row.quantity} item</td>
+                    <td>{row.stock} item</td>
+                    <td>{row.restockThreshold} item</td>
+                    <td>
+                      <div
+                        className={`forecast-meter forecast-meter--${row.statusTone}`}
+                      >
+                        <div className="forecast-meter__track">
+                          <span
+                            className="forecast-meter__fill"
+                            style={{ width: `${row.meterValue}%` }}
+                          />
+                        </div>
+                        <div className="forecast-meter__meta">
+                          <span>{row.status}</span>
+                          <span>{row.meterValue}%</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      {row.suggestedRestock
+                        ? `Restock ${row.suggestedRestock} item`
+                        : "Stok cukup"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

@@ -41,6 +41,19 @@ button {
   min-width: 0;
 }
 
+.sidebar__logo {
+  display: block;
+  max-width: 120px;
+  height: auto;
+}
+
+.login__logo {
+  display: block;
+  max-width: 200px;
+  height: auto;
+  margin: 0 auto 16px;
+}
+
 .sidebar__brand-title--small {
   max-width: 128px;
   white-space: normal;
@@ -554,6 +567,142 @@ button {
   color: var(--color-muted);
   font-size: 14px;
   line-height: 1.6;
+}
+
+.owner-id-input {
+  margin-top: 10px;
+  width: 140px;
+  height: 32px;
+  font-size: 13px;
+}
+
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
+
+input[type="password"]::-webkit-credentials-auto-fill-button {
+  visibility: hidden;
+  display: none !important;
+  pointer-events: none;
+}
+
+.button--forecast {
+  background: #97a3f5;
+  color: #ffffff;
+  border: 0;
+}
+
+.button--forecast:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.forecast-progress-bar {
+  margin-top: 12px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.08);
+  overflow: hidden;
+}
+
+.forecast-progress-bar__fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #a9b3f8, #818cf8);
+  transition: width 0.2s ease;
+}
+
+.forecast-progress-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.forecast-progress-label {
+  font-size: 13px;
+  color: var(--color-secondary);
+  font-weight: 600;
+}
+
+.refund-item-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.refund-item-line + .refund-item-line {
+  margin-top: 2px;
+}
+
+.refund-item-line__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1 1 auto;
+}
+
+.refund-item-line__qty {
+  flex: 0 0 auto;
+  color: var(--color-secondary);
+  font-weight: 600;
+}
+
+.refund-item-line__price {
+  flex: 0 0 auto;
+  font-weight: 700;
+  text-align: right;
+}
+
+.button--disabled-orange:disabled {
+  opacity: 1 !important;
+  color: #d97706 !important;
+  background: rgba(217, 119, 6, 0.1) !important;
+  border-color: #d97706 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+}
+
+.toast-container {
+  position: absolute;
+  top: 100%;
+  right: 24px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  padding: 12px 20px;
+  border-radius: 14px;
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 600;
+  white-space: pre-line;
+  box-shadow:
+    0 12px 32px -12px rgba(15, 23, 42, 0.25),
+    0 0 0 1px rgba(255, 255, 255, 0.5);
+  pointer-events: auto;
+}
+
+.toast--success {
+  background: #065f46;
+  color: #d1fae5;
+}
+
+.toast--error {
+  background: #991b1b;
+  color: #fecaca;
+}
+
+.topbar {
+  position: relative;
 }
 
 @media (max-width: 1180px) {
