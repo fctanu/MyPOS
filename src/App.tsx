@@ -407,7 +407,7 @@ const reportsSeed: ReportSnapshot[] = [
 ];
 
 const AppContext = createContext<AppContextValue | null>(null);
-const STORE_NAME = "MyPOS Sumber Kasih";
+const STORE_NAME = "Sumber Kasih POS";
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("id-ID", {
@@ -1040,7 +1040,7 @@ function ProtectedPage({
         <aside className={sidebarClass}>
           <div className="sidebar__header">
             <div className="sidebar__brand">
-              <img className="sidebar__logo" src="/logo.png.jpeg" alt="MyPOS Sumber Kasih" />
+              <img className="sidebar__logo" src="/logo.png.jpeg" alt="Sumber Kasih POS" />
             </div>
             <button
               type="button"
@@ -1170,7 +1170,7 @@ function LoginPage() {
       <main className="login-shell">
         <section className="login-card">
           <div className="login-card__head">
-            <img className="login__logo" src="/logo.png.jpeg" alt="MyPOS Sumber Kasih" />
+            <img className="login__logo" src="/logo.png.jpeg" alt="Sumber Kasih POS" />
             <p className="card-subtitle">Pilih peran Anda untuk masuk</p>
           </div>
           <div className="form-stack">
