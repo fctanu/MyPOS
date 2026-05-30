@@ -735,12 +735,18 @@ input[type="password"]::-webkit-credentials-auto-fill-button {
   to { transform: rotate(360deg); }
 }
 
-.ai-analysis-summary {
+.ai-analysis-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.ai-analysis-col {
   font-size: 15px;
   line-height: 1.9;
   color: var(--color-body);
   white-space: pre-wrap;
-  margin-bottom: 20px;
   padding: 16px;
   background: #d4edda;
   border-radius: 8px;

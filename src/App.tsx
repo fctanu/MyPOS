@@ -3718,9 +3718,16 @@ JANGAN memberikan penjelasan tambahan, JANGAN menggunakan markdown.`;
                 Gagal menganalisis: {aiError}
               </article>
             ) : null}
-            {aiAnalysis ? (
-              <div className="ai-analysis-summary spacer-bottom" dangerouslySetInnerHTML={{ __html: aiAnalysis }} />
-            ) : null}
+            {aiAnalysis ? (() => {
+              const parts = aiAnalysis.split(/(?=Produk yang sering dibeli barengan|Jam tersibuk toko)/);
+              return (
+                <div className="ai-analysis-grid spacer-bottom">
+                  {parts.map((part, i) => (
+                    <div key={i} className="ai-analysis-col" dangerouslySetInnerHTML={{ __html: part }} />
+                  ))}
+                </div>
+              );
+            })() : null}
             <div className="analysis-tables">
               <div className="table-shell">
                 <table className="data-table">
