@@ -1,0 +1,145 @@
+- generic [ref=e4]:
+  - complementary [ref=e5]:
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - paragraph [ref=e8]: POS Lokal
+        - heading "MyPOS Sumber Kasih" [level=1] [ref=e9]:
+          - generic [ref=e10]: MyPOS
+          - generic [ref=e11]: Sumber Kasih
+      - button "Tutup sidebar" [ref=e12] [cursor=pointer]:
+        - img [ref=e13]
+    - navigation [ref=e16]:
+      - generic [ref=e17]:
+        - link "Transaksi" [ref=e18] [cursor=pointer]:
+          - /url: /transactions
+          - img [ref=e20]
+          - generic [ref=e22]: Transaksi
+        - link "Refund" [ref=e23] [cursor=pointer]:
+          - /url: /refunds
+          - img [ref=e25]
+          - generic [ref=e28]: Refund
+        - link "Produk" [ref=e29] [cursor=pointer]:
+          - /url: /products
+          - img [ref=e31]
+          - generic [ref=e35]: Produk
+        - link "Laporan" [ref=e36] [cursor=pointer]:
+          - /url: /reports
+          - img [ref=e38]
+          - generic [ref=e39]: Laporan
+    - generic [ref=e41]:
+      - generic [ref=e42]:
+        - strong [ref=e43]: Pemilik
+        - generic [ref=e44]: "Tipe: Pemilik"
+        - generic [ref=e45]: Data tersimpan lokal di browser ini.
+      - button "Log Out" [ref=e47] [cursor=pointer]
+  - generic [ref=e48]:
+    - banner [ref=e49]:
+      - heading "Laporan" [level=2] [ref=e50]
+      - generic [ref=e51]:
+        - generic [ref=e52]: 21.27.02
+        - generic [ref=e53]: Rabu, 20 Mei 2026
+    - main [ref=e54]:
+      - generic [ref=e55]:
+        - generic [ref=e56]:
+          - heading "Kontrol Periode" [level=1] [ref=e57]
+          - paragraph [ref=e58]: Buat snapshot laporan atau perkiraan dari rentang waktu yang dipilih.
+          - generic [ref=e59]:
+            - generic [ref=e60]:
+              - generic [ref=e61]: Tanggal mulai
+              - textbox "Tanggal mulai" [ref=e62]: 2026-03-01
+            - generic [ref=e63]:
+              - generic [ref=e64]: Tanggal selesai
+              - textbox "Tanggal selesai" [ref=e65]: 2026-03-31
+            - button "Generate Laporan Bulanan" [ref=e68] [cursor=pointer]
+            - generic [ref=e71]: Buat Perkiraan
+        - generic [ref=e72]:
+          - article [ref=e73]:
+            - generic [ref=e74]: Total Penjualan
+            - generic [ref=e75]: Rp 214.524
+          - article [ref=e76]:
+            - generic [ref=e77]: Total Refund
+            - generic [ref=e78]: Rp 0
+          - article [ref=e79]:
+            - generic [ref=e80]: Jumlah Transaksi
+            - generic [ref=e81]: "3"
+          - article [ref=e82]:
+            - generic [ref=e83]: Pergerakan Stok
+            - generic [ref=e84]: "25"
+        - generic [ref=e85]:
+          - article [ref=e86]:
+            - generic [ref=e87]: Omzet Bersih
+            - generic [ref=e88]: Rp 214.524
+          - article [ref=e89]:
+            - generic [ref=e90]: Rata-rata Belanja
+            - generic [ref=e91]: Rp 71.508
+          - article [ref=e92]:
+            - generic [ref=e93]: Estimasi Laba Kotor
+            - generic [ref=e94]: Rp 43.890
+        - generic [ref=e95]:
+          - heading "Snapshot Laporan Tersimpan" [level=2] [ref=e96]
+          - table [ref=e98]:
+            - rowgroup [ref=e99]:
+              - row "Dibuat Mulai Selesai Penjualan Refund Produk Terlaris" [ref=e100]:
+                - columnheader "Dibuat" [ref=e101]
+                - columnheader "Mulai" [ref=e102]
+                - columnheader "Selesai" [ref=e103]
+                - columnheader "Penjualan" [ref=e104]
+                - columnheader "Refund" [ref=e105]
+                - columnheader "Produk Terlaris" [ref=e106]
+            - rowgroup [ref=e107]:
+              - row "01 Apr 2026 08.30 2026-03-01 2026-03-31 Rp 58.190.250 Rp 2.415.400 SEDAAP MIE GR 91GR (40)" [ref=e108]:
+                - cell "01 Apr 2026 08.30" [ref=e109]
+                - cell "2026-03-01" [ref=e110]
+                - cell "2026-03-31" [ref=e111]
+                - cell "Rp 58.190.250" [ref=e112]
+                - cell "Rp 2.415.400" [ref=e113]
+                - cell "SEDAAP MIE GR 91GR (40)" [ref=e114]
+              - row "01 Mar 2026 08.20 2026-02-01 2026-02-29 Rp 54.882.100 Rp 1.924.600 INDOMILK KALENG PUTIH" [ref=e115]:
+                - cell "01 Mar 2026 08.20" [ref=e116]
+                - cell "2026-02-01" [ref=e117]
+                - cell "2026-02-29" [ref=e118]
+                - cell "Rp 54.882.100" [ref=e119]
+                - cell "Rp 1.924.600" [ref=e120]
+                - cell "INDOMILK KALENG PUTIH" [ref=e121]
+        - generic [ref=e122]:
+          - heading "Snapshot Forecasting" [level=2] [ref=e123]
+          - table [ref=e125]:
+            - rowgroup [ref=e126]:
+              - row "Dibuat Produk Total Terjual Stok Saat Ini Status Forecast Saran Restok" [ref=e127]:
+                - columnheader "Dibuat" [ref=e128]
+                - columnheader "Produk" [ref=e129]
+                - columnheader "Total Terjual" [ref=e130]
+                - columnheader "Stok Saat Ini" [ref=e131]
+                - columnheader "Status Forecast" [ref=e132]
+                - columnheader "Saran Restok" [ref=e133]
+            - rowgroup [ref=e134]:
+              - row "20 Mei 2026 21.27 INDOMILK KALENG PUTIH 8 item 150 item Aman 100% Stok cukup" [ref=e135]:
+                - cell "20 Mei 2026 21.27" [ref=e136]
+                - cell "INDOMILK KALENG PUTIH" [ref=e137]
+                - cell "8 item" [ref=e138]
+                - cell "150 item" [ref=e139]
+                - cell "Aman 100%" [ref=e140]:
+                  - generic [ref=e144]:
+                    - generic [ref=e145]: Aman
+                    - generic [ref=e146]: 100%
+                - cell "Stok cukup" [ref=e147]
+              - row "20 Mei 2026 21.27 MIE INSTAN INTERMI (40) 4 item 100 item Aman 100% Stok cukup" [ref=e148]:
+                - cell "20 Mei 2026 21.27" [ref=e149]
+                - cell "MIE INSTAN INTERMI (40)" [ref=e150]
+                - cell "4 item" [ref=e151]
+                - cell "100 item" [ref=e152]
+                - cell "Aman 100%" [ref=e153]:
+                  - generic [ref=e157]:
+                    - generic [ref=e158]: Aman
+                    - generic [ref=e159]: 100%
+                - cell "Stok cukup" [ref=e160]
+              - row "20 Mei 2026 21.27 ROMA KELAPA 4 item 0 item Restock 0% Restock 50 item" [ref=e161]:
+                - cell "20 Mei 2026 21.27" [ref=e162]
+                - cell "ROMA KELAPA" [ref=e163]
+                - cell "4 item" [ref=e164]
+                - cell "0 item" [ref=e165]
+                - cell "Restock 0%" [ref=e166]:
+                  - generic [ref=e170]:
+                    - generic [ref=e171]: Restock
+                    - generic [ref=e172]: 0%
+                - cell "Restock 50 item" [ref=e173]

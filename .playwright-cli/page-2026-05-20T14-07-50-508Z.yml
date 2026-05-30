@@ -1,0 +1,76 @@
+- generic [ref=e4]:
+  - complementary [ref=e5]:
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - paragraph [ref=e8]: POS Lokal
+        - heading "MyPOS Sumber Kasih" [level=1] [ref=e9]
+      - button "Tutup sidebar" [ref=e10] [cursor=pointer]:
+        - img [ref=e11]
+    - navigation [ref=e15]:
+      - generic [ref=e16]:
+        - link "Transaksi" [ref=e17] [cursor=pointer]:
+          - /url: /transactions
+          - img [ref=e19]
+          - generic [ref=e21]: Transaksi
+        - link "Refund" [ref=e22] [cursor=pointer]:
+          - /url: /refunds
+          - img [ref=e24]
+          - generic [ref=e27]: Refund
+        - link "Produk" [ref=e28] [cursor=pointer]:
+          - /url: /products
+          - img [ref=e30]
+          - generic [ref=e34]: Produk
+        - link "Laporan" [ref=e35] [cursor=pointer]:
+          - /url: /reports
+          - img [ref=e37]
+          - generic [ref=e38]: Laporan
+    - generic [ref=e40]:
+      - generic [ref=e41]:
+        - strong [ref=e42]: Pemilik
+        - generic [ref=e43]: "Tipe: Pemilik"
+        - generic [ref=e44]: Data tersimpan lokal di browser ini.
+      - button "Log Out" [ref=e46] [cursor=pointer]
+  - generic [ref=e47]:
+    - banner [ref=e48]:
+      - heading "Transaksi" [level=2] [ref=e49]
+      - generic [ref=e50]:
+        - generic [ref=e51]: 21.07.50
+        - generic [ref=e52]: Rabu, 20 Mei 2026
+    - main [ref=e53]:
+      - generic [ref=e55]:
+        - heading "Data Pelanggan" [level=1] [ref=e56]
+        - paragraph [ref=e57]: Cari pelanggan berdasarkan nama atau nomor telepon.
+        - generic [ref=e58]:
+          - generic [ref=e59]:
+            - generic [ref=e60]: Cari pelanggan
+            - textbox "Cari pelanggan" [ref=e61]:
+              - /placeholder: Ketik nama atau telepon...
+          - table [ref=e63]:
+            - rowgroup [ref=e64]:
+              - row "Pelanggan Telepon Poin" [ref=e65]:
+                - columnheader "Pelanggan" [ref=e66]
+                - columnheader "Telepon" [ref=e67]
+                - columnheader "Poin" [ref=e68]
+                - columnheader [ref=e69]
+            - rowgroup [ref=e70]:
+              - row "Bu Yuni 0812-7000-1188 485 Pilih" [ref=e71]:
+                - cell "Bu Yuni" [ref=e72]
+                - cell "0812-7000-1188" [ref=e73]
+                - cell "485" [ref=e74]
+                - cell "Pilih" [ref=e75]:
+                  - button "Pilih" [ref=e76] [cursor=pointer]
+              - row "Kios Rajawali 0812-4222-9988 240 Pilih" [ref=e77]:
+                - cell "Kios Rajawali" [ref=e78]
+                - cell "0812-4222-9988" [ref=e79]
+                - cell "240" [ref=e80]
+                - cell "Pilih" [ref=e81]:
+                  - button "Pilih" [ref=e82] [cursor=pointer]
+              - row "Warung Sari 0812-1456-8877 120 Pilih" [ref=e83]:
+                - cell "Warung Sari" [ref=e84]
+                - cell "0812-1456-8877" [ref=e85]
+                - cell "120" [ref=e86]
+                - cell "Pilih" [ref=e87]:
+                  - button "Pilih" [ref=e88] [cursor=pointer]
+          - generic [ref=e89]:
+            - button "Buat Pelanggan Baru" [ref=e90] [cursor=pointer]
+            - button "Lewati (Pelanggan Umum)" [ref=e91] [cursor=pointer]
