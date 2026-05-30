@@ -742,7 +742,7 @@ input[type="password"]::-webkit-credentials-auto-fill-button {
   white-space: pre-wrap;
   margin-bottom: 20px;
   padding: 16px;
-  background: rgba(255, 255, 255, 0.5);
+  background: #d4edda;
   border-radius: 8px;
 }
 
