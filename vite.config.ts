@@ -19,9 +19,9 @@ export default defineConfig(({mode}) => {
       hmr: process.env.DISABLE_HMR !== 'true',
       proxy: {
         '/api/nvidia': {
-          target: 'https://integrate.api.nvidia.com',
+          target: 'https://integrate.api.nvidia.com/v1/chat/completions',
           changeOrigin: true,
-          rewrite: (p) => p.replace('/api/nvidia', '/v1'),
+          rewrite: () => '',
         },
       },
     },
