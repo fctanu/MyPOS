@@ -3436,14 +3436,13 @@ function ReportsPage({
     try {
       const systemPrompt = `Anda adalah asisten yang menjawab dengan SANGAT SINGKAT dan TEPAT.
 
-Outputkan 3 baris persis seperti template berikut, jangan tambahkan apapun:
-Baris 1: Top 3 produk dengan pertumbuhan terbaik : <strong>{top3_produk_dengan_persen}</strong> (cukup 3 produk dengan kenaikan tertinggi, format: "ProdukA (+XX%), ProdukB (+YY%), ProdukC (+ZZ%)")
-Baris 2: Produk yang sering dibeli barengan : <strong>{pasangan_produk}</strong> (cukup max 3 pasangan, format "A + B, C + D, E + F")
-Baris 3: Jam tersibuk toko : <strong>Pukul {jam_mulai} hingga {jam_selesai}</strong>, hari <strong>{hari_ramai}</strong> (rentang 2 jam sebagai peak hours, format 24 jam)
+Outputkan persis seperti template berikut, jangan tambahkan apapun:
+Top 3 produk dengan pertumbuhan terbaik : <strong>1. ProdukA (+XX%), 2. ProdukB (+YY%), 3. ProdukC (+ZZ%)</strong>
+Produk yang sering dibeli barengan : <strong>1. A + B, 2. C + D, 3. E + F</strong>
+Jam tersibuk toko : <strong>- Hari {hari_ramai}, - Pukul {jam_mulai} hingga {jam_selesai}</strong> (gabung dalam satu baris)
 
-Gunakan format 24 jam (01:00 bukan 1:00).
-Gunakan <strong> tag HTML untuk membuat teks setelah tanda titik dua (:) menjadi tebal.
-JANGAN memberikan penjelasan tambahan, JANGAN menggunakan markdown. Hanya 3 baris itu.`;
+Gunakan format 24 jam (01:00 bukan 1:00). Gunakan <strong> tag untuk teks setelah titik dua.
+JANGAN memberikan penjelasan tambahan, JANGAN menggunakan markdown.`;
 
       const userData = {
         periode: `${periodStart} hingga ${periodEnd}`,
