@@ -1,12 +1,10 @@
-const NVIDIA_BASE = "https://integrate.api.nvidia.com/v1";
+export const config = {
+  runtime: "nodejs",
+};
 
 export async function POST(request: Request) {
-  const url = new URL(request.url);
-  const path = url.pathname.replace("/api/nvidia", "");
-  const target = `${NVIDIA_BASE}${path}`;
-
-  const headers = new Headers(request.headers);
-  headers.set("host", "integrate.api.nvidia.com");
+  const url = new URL(request.url.replace("/api/nvidia", ""));
+  const target = `https://integrate.api.nvidia.com/v1${url.pathname}`;
 
   const body = await request.text();
 
@@ -14,7 +12,7 @@ export async function POST(request: Request) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: headers.get("Authorization") ?? "",
+      Authorization: request.headers.get("Authorization") ?? "",
     },
     body: body || undefined,
   });
