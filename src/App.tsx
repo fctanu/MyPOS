@@ -3437,7 +3437,7 @@ function ReportsPage({
       const systemPrompt = `Anda adalah asisten yang menjawab dengan SANGAT SINGKAT dan TEPAT.
 
 Outputkan 3 baris persis seperti template berikut, jangan tambahkan apapun:
-Baris 1: Produk yang penjualannya naik dari periode sebelumnya : <strong>{top3_produk_dengan_persen}</strong> (cukup 3 produk dengan kenaikan tertinggi, format: "ProdukA (+XX%), ProdukB (+YY%), ProdukC (+ZZ%)")
+Baris 1: Top 3 produk dengan pertumbuhan terbaik : <strong>{top3_produk_dengan_persen}</strong> (cukup 3 produk dengan kenaikan tertinggi, format: "ProdukA (+XX%), ProdukB (+YY%), ProdukC (+ZZ%)")
 Baris 2: Produk yang sering dibeli barengan : <strong>{pasangan_produk}</strong> (cukup max 3 pasangan, format "A + B, C + D, E + F")
 Baris 3: Jam tersibuk toko : <strong>Pukul {jam_mulai} hingga {jam_selesai}</strong>, hari <strong>{hari_ramai}</strong> (rentang 2 jam sebagai peak hours, format 24 jam)
 
@@ -3474,7 +3474,7 @@ JANGAN memberikan penjelasan tambahan, JANGAN menggunakan markdown. Hanya 3 bari
         ],
         (text) => {
           const lines = text.split("\n").filter(
-            (l) => l.startsWith("Produk yang penjualannya naik") || l.startsWith("Produk yang sering dibeli barengan") || l.startsWith("Jam tersibuk toko"),
+            (l) => l.startsWith("Top 3 produk dengan pertumbuhan terbaik") || l.startsWith("Produk yang sering dibeli barengan") || l.startsWith("Jam tersibuk toko"),
           );
           setAiAnalysis(lines.join("\n"));
         },
