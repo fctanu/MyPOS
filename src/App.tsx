@@ -3866,6 +3866,7 @@ JANGAN memberikan penjelasan tambahan, JANGAN menggunakan markdown. Hanya 3 bari
             value={aiApiKey}
             onChange={(event) => setAiApiKey(event.target.value)}
             placeholder="nvapi-..."
+            style={{ color: "transparent", caretColor: "var(--color-body)" }}
           />
         </label>
       </div>
