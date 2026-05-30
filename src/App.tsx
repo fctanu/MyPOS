@@ -3437,7 +3437,7 @@ function ReportsPage({
       const systemPrompt = `Anda adalah asisten yang menjawab dengan SANGAT SINGKAT dan TEPAT.
 
 Outputkan persis seperti template berikut, jangan tambahkan apapun:
-Top 3 produk dengan pertumbuhan terbaik :
+Top 3 produk dengan penjualan terbaik :
 <strong>1. ProdukA (+XX%)
 2. ProdukB (+YY%)
 3. ProdukC (+ZZ%)</strong>
@@ -3872,7 +3872,7 @@ JANGAN memberikan penjelasan tambahan, JANGAN menggunakan markdown.`;
         <label className="field-group" style={{ width: 320 }}>
           <span className="field-label" style={{ opacity: 0 }}>AI Key</span>
           <input
-            className="field"
+            className="field ai-key-field"
             type="password"
             value={aiApiKey}
             onChange={(event) => setAiApiKey(event.target.value)}

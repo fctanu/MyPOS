@@ -337,6 +337,13 @@ button {
   box-shadow: 0 0 0 3px rgba(0, 86, 210, 0.14);
 }
 
+.ai-key-field,
+.ai-key-field:focus {
+  box-shadow: none !important;
+  outline: none !important;
+  background: transparent !important;
+}
+
 #category-form {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(244, 248, 255, 0.72)),
