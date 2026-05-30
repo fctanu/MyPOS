@@ -3857,6 +3857,18 @@ JANGAN memberikan penjelasan tambahan, JANGAN menggunakan markdown. Hanya 3 bari
           </div>
         </section>
       ) : null}
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+        <label className="field-group" style={{ width: 320 }}>
+          <span className="field-label">NVIDIA API Key</span>
+          <input
+            className="field"
+            type="password"
+            value={aiApiKey}
+            onChange={(event) => setAiApiKey(event.target.value)}
+            placeholder="nvapi-..."
+          />
+        </label>
+      </div>
     </div>
   );
 }
