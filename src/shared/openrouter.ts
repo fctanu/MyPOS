@@ -4,7 +4,7 @@ export async function callOpenRouterStream(
   onChunk: (fullText: string) => void,
 ): Promise<string> {
   const response = await fetch(
-    "https://integrate.api.nvidia.com/v1/chat/completions",
+    "/api/nvidia/chat/completions",
     {
       method: "POST",
       headers: {

@@ -17,6 +17,13 @@ export default defineConfig(({mode}) => {
     },
     server: {
       hmr: process.env.DISABLE_HMR !== 'true',
+      proxy: {
+        '/api/nvidia': {
+          target: 'https://integrate.api.nvidia.com',
+          changeOrigin: true,
+          rewrite: (p) => p.replace('/api/nvidia', '/v1'),
+        },
+      },
     },
   };
 });
