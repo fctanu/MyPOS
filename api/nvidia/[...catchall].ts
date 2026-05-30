@@ -1,15 +1,16 @@
 export const config = {
-  runtime: "nodejs",
+  runtime: "edge",
 };
 
-export async function POST(request: Request) {
-  const url = new URL(request.url.replace("/api/nvidia", ""));
-  const target = `https://integrate.api.nvidia.com/v1${url.pathname}`;
+export default async function handler(request: Request): Promise<Response> {
+  const url = new URL(request.url);
+  const path = url.pathname.replace("/api/nvidia", "");
+  const target = `https://integrate.api.nvidia.com/v1${path}`;
 
   const body = await request.text();
 
   const res = await fetch(target, {
-    method: "POST",
+    method: request.method,
     headers: {
       "Content-Type": "application/json",
       Authorization: request.headers.get("Authorization") ?? "",
