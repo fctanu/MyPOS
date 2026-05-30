@@ -30,7 +30,7 @@ export async function callOpenRouterStream(
       /* ignore */
     }
     throw new Error(
-      `NVIDIA API error ${response.status}: ${errorText || response.statusText}`,
+      `AI API error ${response.status}: ${errorText || response.statusText}`,
     );
   }
 

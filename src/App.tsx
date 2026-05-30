@@ -3859,7 +3859,7 @@ JANGAN memberikan penjelasan tambahan, JANGAN menggunakan markdown. Hanya 3 bari
       ) : null}
       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
         <label className="field-group" style={{ width: 320 }}>
-          <span className="field-label">NVIDIA API Key</span>
+          <span className="field-label">AI Key</span>
           <input
             className="field"
             type="password"
