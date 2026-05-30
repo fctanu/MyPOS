@@ -6,6 +6,7 @@ import {
   useEffect,
   useRef,
   useState,
+  Fragment,
   type ChangeEvent,
   type DragEvent,
   type ReactNode,
@@ -20,6 +21,8 @@ import {
   useNavigate,
 } from "react-router-dom";
 import * as XLSX from "xlsx";
+import { callOpenRouterStream } from "./shared/openrouter";
+import { salesSeedData } from "./shared/salesSeedData";
 
 type Toast = {
   id: string;
@@ -379,105 +382,6 @@ const customersSeed: Customer[] = [
     phone: "0812-1456-8877",
     address: "Palmerah, Jakarta Barat",
     loyaltyPoints: 120,
-  },
-];
-
-const salesSeed: Sale[] = [
-  {
-    id: "sale-1049",
-    receiptNumber: "RCPT-1049",
-    customerId: "CUST-0001",
-    customerName: "Bu Yuni",
-    customerPhone: "0812-7000-1188",
-    total: 20250,
-    paymentMethod: "cash",
-    createdAt: "2026-03-29T23:50:00+07:00",
-    pointsUsed: 0,
-    pointsEarned: 202,
-    items: [
-      {
-        productId: "prd-10",
-        productName: "MIE INSTAN INTERMI (40)",
-        quantity: 4,
-        unitPrice: 1500,
-        subtotal: 6000,
-      },
-      {
-        productId: "prd-12",
-        productName: "RIMBA",
-        quantity: 1,
-        unitPrice: 10000,
-        subtotal: 10000,
-      },
-      {
-        productId: "prd-59",
-        productName: "KAPAL API",
-        quantity: 2,
-        unitPrice: 2125,
-        subtotal: 4250,
-      },
-    ],
-  },
-  {
-    id: "sale-1048",
-    receiptNumber: "RCPT-1048",
-    customerName: "Umum",
-    total: 175774,
-    paymentMethod: "transfer",
-    createdAt: "2026-03-29T20:12:00+07:00",
-    pointsUsed: 0,
-    pointsEarned: 1757,
-    items: [
-      {
-        productId: "prd-20",
-        productName: "INDOMILK KALENG PUTIH",
-        quantity: 8,
-        unitPrice: 12000,
-        subtotal: 96000,
-      },
-      {
-        productId: "prd-13",
-        productName: "TAWON",
-        quantity: 3,
-        unitPrice: 15000,
-        subtotal: 45000,
-      },
-      {
-        productId: "prd-75",
-        productName: "CRISPY CR",
-        quantity: 4,
-        unitPrice: 8693.5,
-        subtotal: 34774,
-      },
-    ],
-  },
-  {
-    id: "sale-1046",
-    receiptNumber: "RCPT-1046",
-    customerId: "CUST-0002",
-    customerName: "Kios Rajawali",
-    customerPhone: "0812-4222-9988",
-    total: 18500,
-    paymentMethod: "cash",
-    createdAt: "2026-03-28T23:38:00+07:00",
-    pointsUsed: 0,
-    pointsEarned: 185,
-    items: [
-      {
-        productId: "prd-5",
-        productName: "SEDAAP MIE GR 91GR (40)",
-        quantity: 2,
-        unitPrice: 3500,
-        subtotal: 7000,
-      },
-      {
-        productId: "prd-19",
-        productName: "BENDERA KALENG",
-        quantity: 1,
-        unitPrice: 12000,
-        subtotal: 12000,
-      },
-    ],
   },
 ];
 
@@ -974,7 +878,7 @@ function AppProvider({ children }: { children: ReactNode }) {
   const [products, setProductsState] = useState<Product[]>(productsSeed);
   const [sales, setSalesState] = useState<Sale[]>(() => {
     const raw = window.localStorage.getItem("mypos-sales");
-    return raw ? (JSON.parse(raw) as Sale[]) : salesSeed;
+    return raw ? (JSON.parse(raw) as Sale[]) : salesSeedData;
   });
   const [refunds, setRefundsState] = useState<RefundRecord[]>(() => {
     const raw = window.localStorage.getItem("mypos-refunds");
@@ -1699,23 +1603,20 @@ function TransactionsPage({
 
   if (step === "lookup") {
     return (
-      <div className="page-stack page-width-lg">
+      <div className="lookup-split__left">
         <section className="panel">
           <h1 className="page-heading">Data Pelanggan</h1>
           <p className="section-subtitle">
             Cari pelanggan berdasarkan nama atau nomor telepon.
           </p>
           <div className="form-stack spacer-top">
-            <label className="field-group">
-              <span className="field-label">Cari pelanggan</span>
-              <input
-                className="field"
-                type="text"
-                value={searchCustomer}
-                placeholder="Ketik nama atau telepon..."
-                onChange={(event) => setSearchCustomer(event.target.value)}
-              />
-            </label>
+            <input
+              className="field"
+              type="text"
+              value={searchCustomer}
+              placeholder="Ketik nama atau telepon..."
+              onChange={(event) => setSearchCustomer(event.target.value)}
+            />
             {matchingCustomers.length > 0 ? (
               <div className="table-shell">
                 <table className="data-table">
@@ -2887,19 +2788,33 @@ function RefundsPage({
   const [reason, setReason] = useState("Keluhan pelanggan");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [ownerId, setOwnerId] = useState("");
+  const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null);
 
-  const filteredSales = sales
-    .filter((sale) => {
-      const query = search.trim().toLowerCase();
-      if (!query) return true;
-      return (
-        sale.receiptNumber.toLowerCase().includes(query) ||
-        sale.customerName.toLowerCase().includes(query)
-      );
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const months = [...new Set(salesSeedData.map((s) => s.createdAt.slice(0, 7)))].sort();
+    return months[months.length - 1] || "2026-01";
+  });
+  const availableMonths = [...new Set(salesSeedData.map((s) => s.createdAt.slice(0, 7)))].sort();
+  const monthLabel = (ym: string) => {
+    const [y, m] = ym.split("-");
+    const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+    return `${months[parseInt(m) - 1]} ${y}`;
+  };
+
+  const refundableSales = salesSeedData
+    .filter((s) => {
+      if (s.createdAt.slice(0, 7) !== selectedMonth) return false;
+      if (!search) return true;
+      const q = search.toLowerCase();
+      return s.receiptNumber.toLowerCase().includes(q) || s.customerName.toLowerCase().includes(q);
     })
-    .map((sale) => ({ ...sale, refundable: isWithinRefundWindow(sale.createdAt) }));
+    .map((sale) => ({ ...sale, refundable: isWithinRefundWindow(sale.createdAt) }))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
-  const selectedSale = sales.find((sale) => sale.id === selectedSaleId) ?? null;
+  const selectedSale =
+    sales.find((sale) => sale.id === selectedSaleId) ??
+    salesSeedData.find((sale) => sale.id === selectedSaleId) ??
+    null;
   const selectedSaleRefundable =
     selectedSale && isWithinRefundWindow(selectedSale.createdAt);
 
@@ -2972,17 +2887,29 @@ function RefundsPage({
       <section className="panel">
         <h1 className="page-heading">Pencarian Refund</h1>
         <p className="section-subtitle">
-          Refund dibatasi oleh jendela waktu yang ditentukan dan dilacak ke
-          struk asli.
+          Pilih bulan, cari struk atau pelanggan. Refund dibatasi 3 hari sejak transaksi.
         </p>
         <label className="field-group spacer-top">
-          <span className="field-label">
-            Cari berdasarkan struk atau pelanggan
-          </span>
+          <span className="field-label">Bulan</span>
+          <select
+            className="field"
+            value={selectedMonth}
+            onChange={(event) => setSelectedMonth(event.target.value)}
+          >
+            {availableMonths.map((ym) => (
+              <option key={ym} value={ym}>
+                {monthLabel(ym)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field-group spacer-top">
+          <span className="field-label">Cari Struk / Pelanggan</span>
           <input
             className="field"
             type="text"
             value={search}
+            placeholder="Ketik nomor struk atau nama..."
             onChange={(event) => setSearch(event.target.value)}
           />
         </label>
@@ -2998,28 +2925,84 @@ function RefundsPage({
               </tr>
             </thead>
             <tbody>
-              {filteredSales.slice(0, 6).map((sale) => (
-                <tr key={sale.id}>
-                  <td>{sale.receiptNumber}</td>
-                  <td>{sale.customerName}</td>
-                  <td>{formatCurrency(sale.total)}</td>
-                  <td>{formatShortDate(sale.createdAt)}</td>
-                  <td className="text-right">
-                    <button
-                      type="button"
-                      className={`button button--ghost${!sale.refundable ? " button--disabled-orange" : ""}`}
-                      onClick={() => setSelectedSaleId(sale.id)}
-                      disabled={!sale.refundable}
-                      title={sale.refundable ? "" : "Melebihi batas 3 hari"}
+              {refundableSales.length > 0 ? (
+                refundableSales.map((sale) => (
+                  <Fragment key={sale.id}>
+                    <tr
+                      className="history-row"
+                      onClick={() =>
+                        setExpandedSaleId(
+                          expandedSaleId === sale.id ? null : sale.id,
+                        )
+                      }
                     >
-                      {sale.refundable ? "Pilih" : "Kadaluwarsa"}
-                    </button>
+                      <td>{sale.receiptNumber}</td>
+                      <td>{sale.customerName}</td>
+                      <td>{formatCurrency(sale.total)}</td>
+                      <td>{formatShortDate(sale.createdAt)}</td>
+                      <td>
+                        {expandedSaleId === sale.id ? "▲" : "▼"}
+                      </td>
+                    </tr>
+                    {expandedSaleId === sale.id ? (
+                      <tr className="history-detail">
+                        <td colSpan={5}>
+                          <div className="history-detail__inner">
+                            {sale.items.map((item, i) => (
+                              <div key={i} className="history-detail__item">
+                                <span className="history-detail__name">
+                                  {item.productName}
+                                </span>
+                                <span className="history-detail__qty">
+                                  ×{item.quantity}
+                                </span>
+                                <span className="history-detail__price">
+                                  {formatCurrency(item.subtotal)}
+                                </span>
+                              </div>
+                            ))}
+                            <div className="history-detail__footer">
+                              <span className="history-detail__footer-label">
+                                {sale.paymentMethod === "cash" ? "Tunai" : "Transfer QRIS"} &middot; Total: {formatCurrency(sale.total)}
+                              </span>
+                              <button
+                                type="button"
+                                className={`button button--sm${sale.refundable ? " button--primary" : " button--disabled-orange"}`}
+                                onClick={() => sale.refundable && setSelectedSaleId(sale.id)}
+                                disabled={!sale.refundable}
+                                title={sale.refundable ? "Pilih untuk refund" : "Melebihi batas 3 hari"}
+                              >
+                                {sale.refundable ? "Pilih untuk Refund" : "Kadaluwarsa"}
+                              </button>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5}>
+                    <div className="empty-state">
+                      <h3 className="empty-state__title">
+                        Tidak ada transaksi
+                      </h3>
+                      <p className="empty-state__copy">
+                        Tidak ditemukan transaksi pada bulan yang dipilih.
+                      </p>
+                    </div>
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
+        {refundableSales.length > 0 ? (
+          <p className="card-copy spacer-top" style={{ color: "var(--color-muted)", fontSize: 13 }}>
+            Menampilkan {refundableSales.length} transaksi
+          </p>
+        ) : null}
       </section>
       <section className="panel">
         <h2 className="card-title" style={{ fontSize: 30 }}>
@@ -3122,9 +3105,9 @@ function RefundsPage({
               </label>
               <button
                 type="button"
-                className={`button button--primary${ownerId !== "sumberkasih" ? " button--disabled-orange" : ""}`}
+                className={`button button--primary${ownerId !== "sumberkasih" || !selectedSaleRefundable ? " button--disabled-orange" : ""}`}
                 onClick={processRefund}
-                disabled={ownerId !== "sumberkasih"}
+                disabled={ownerId !== "sumberkasih" || !selectedSaleRefundable}
               >
                 Proses Refund
               </button>
@@ -3220,14 +3203,21 @@ function ReportsPage({
   setGenerated: (value: boolean) => void;
 }) {
   const { sales, refunds, products, reports, setReports } = useAppModel();
-  const [periodStart, setPeriodStart] = useState("2026-03-01");
-  const [periodEnd, setPeriodEnd] = useState("2026-03-31");
+  const [periodStart, setPeriodStart] = useState("2026-01-01");
+  const [periodEnd, setPeriodEnd] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  });
   const [isGenerating, setIsGenerating] = useState(false);
   const [reportProgress, setReportProgress] = useState(0);
   const [periodError, setPeriodError] = useState("");
   const [forecastGenerated, setForecastGenerated] = useState(false);
   const [isForecasting, setIsForecasting] = useState(false);
   const [forecastProgress, setForecastProgress] = useState(0);
+  const [aiApiKey, setAiApiKey] = useState("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");
+  const [aiAnalysis, setAiAnalysis] = useState("");
+  const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
+  const [aiError, setAiError] = useState("");
 
   const salesTotal = sales.reduce((total, sale) => total + sale.total, 0);
   const refundTotal = refunds.reduce(
@@ -3313,6 +3303,73 @@ function ReportsPage({
         right.quantity - left.quantity
       );
     });
+
+  const currentSalesAI = sales.filter(
+    (s) => s.createdAt >= periodStart && s.createdAt <= periodEnd + "T23:59:59",
+  );
+  const startDate = new Date(periodStart + "T00:00:00");
+  const endDate = new Date(periodEnd + "T00:00:00");
+  const periodDays = Math.round((endDate.getTime() - startDate.getTime()) / 86400000) + 1;
+  const prevEnd = new Date(startDate.getTime() - 86400000);
+  const prevStart = new Date(prevEnd.getTime() - (periodDays - 1) * 86400000);
+  const prevStartStr = prevStart.toISOString().slice(0, 10);
+  const prevEndStr = prevEnd.toISOString().slice(0, 10);
+
+  const prevSalesAI = sales.filter(
+    (s) => s.createdAt >= prevStartStr && s.createdAt <= prevEndStr + "T23:59:59",
+  );
+
+  const currentCounts: Record<string, number> = {};
+  currentSalesAI.forEach((s) => {
+    s.items.forEach((item) => {
+      currentCounts[item.productName] = (currentCounts[item.productName] || 0) + item.quantity;
+    });
+  });
+
+  const prevCounts: Record<string, number> = {};
+  prevSalesAI.forEach((s) => {
+    s.items.forEach((item) => {
+      prevCounts[item.productName] = (prevCounts[item.productName] || 0) + item.quantity;
+    });
+  });
+
+  const productChanges = Object.entries(currentCounts)
+    .map(([name, qty]) => {
+      const prevQty = prevCounts[name] || 0;
+      const change = prevQty ? ((qty - prevQty) / prevQty * 100) : 100;
+      return { name, currentQty: qty, prevQty, change: Math.round(change * 10) / 10 };
+    })
+    .sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
+
+  const pairCounts: Record<string, number> = {};
+  currentSalesAI.forEach((s) => {
+    const names = s.items.map((item) => item.productName);
+    for (let i = 0; i < names.length; i++) {
+      for (let j = i + 1; j < names.length; j++) {
+        const key = [names[i], names[j]].sort().join(" ||| ");
+        pairCounts[key] = (pairCounts[key] || 0) + 1;
+      }
+    }
+  });
+  const topPairs = Object.entries(pairCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  const hourCounts: Record<number, number> = {};
+  currentSalesAI.forEach((s) => {
+    const hour = new Date(s.createdAt).getHours();
+    hourCounts[hour] = (hourCounts[hour] || 0) + 1;
+  });
+  const sortedHours = Object.entries(hourCounts).sort((a, b) => b[1] - a[1]);
+
+  const dayCounts: Record<string, number> = {};
+  currentSalesAI.forEach((s) => {
+    const day = new Date(s.createdAt).toLocaleDateString("id-ID", { weekday: "long" });
+    dayCounts[day] = (dayCounts[day] || 0) + 1;
+  });
+  const sortedDays = Object.entries(dayCounts).sort((a, b) => b[1] - a[1]);
+
+  const currentRevenue = currentSalesAI.reduce((sum, s) => sum + s.total, 0);
+  const prevRevenue = prevSalesAI.reduce((sum, s) => sum + s.total, 0);
+
   const isPeriodValid = Boolean(
     periodStart && periodEnd && periodStart <= periodEnd,
   );
@@ -3363,6 +3420,71 @@ function ReportsPage({
         return next;
       });
     }, 200);
+  }
+
+  useEffect(() => {
+    if (forecastGenerated && !isForecasting && !isAiAnalyzing && !aiAnalysis && !aiError && aiApiKey) {
+      analyzeSalesWithAI();
+    }
+  }, [forecastGenerated, isForecasting]);
+
+  async function analyzeSalesWithAI() {
+    if (!aiApiKey) return;
+    setIsAiAnalyzing(true);
+    setAiError("");
+
+    try {
+      const systemPrompt = `Anda adalah asisten yang menjawab dengan SANGAT SINGKAT dan TEPAT.
+
+Outputkan 3 baris persis seperti template berikut, jangan tambahkan apapun:
+Baris 1: Produk yang penjualannya naik dari periode sebelumnya : <strong>{top3_produk_dengan_persen}</strong> (cukup 3 produk dengan kenaikan tertinggi, format: "ProdukA (+XX%), ProdukB (+YY%), ProdukC (+ZZ%)")
+Baris 2: Produk yang sering dibeli barengan : <strong>{pasangan_produk}</strong> (cukup max 3 pasangan, format "A + B, C + D, E + F")
+Baris 3: Jam tersibuk toko : <strong>Pukul {jam_mulai} hingga {jam_selesai}</strong>, hari <strong>{hari_ramai}</strong> (rentang 2 jam sebagai peak hours, format 24 jam)
+
+Gunakan format 24 jam (01:00 bukan 1:00).
+Gunakan <strong> tag HTML untuk membuat teks setelah tanda titik dua (:) menjadi tebal.
+JANGAN memberikan penjelasan tambahan, JANGAN menggunakan markdown. Hanya 3 baris itu.`;
+
+      const userData = {
+        periode: `${periodStart} hingga ${periodEnd}`,
+        periodeSebelumnya: `${prevStartStr} hingga ${prevEndStr}`,
+        totalTransaksiPeriodeIni: currentSalesAI.length,
+        totalTransaksiPeriodeSebelumnya: prevSalesAI.length,
+        totalPendapatanPeriodeIni: currentRevenue,
+        totalPendapatanPeriodeSebelumnya: prevRevenue,
+        perubahanProduk: productChanges.map(
+          (p) => `${p.name}: ${p.change >= 0 ? "+" : ""}${p.change}% (${p.prevQty} → ${p.currentQty})`,
+        ),
+        produkBersamaan: topPairs.map(
+          ([pair, count]) => `${pair.split(" ||| ").join(" + ")} (${count}x)`,
+        ),
+        jamOperasional: sortedHours.map(
+          ([hour, count]) => `${hour}:00 = ${count} transaksi`,
+        ),
+        hariOperasional: sortedDays.map(
+          ([day, count]) => `${day}: ${count} transaksi`,
+        ),
+      };
+
+      await callOpenRouterStream(
+        aiApiKey,
+        [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: JSON.stringify(userData, null, 2) },
+        ],
+        (text) => {
+          const lines = text.split("\n").filter(
+            (l) => l.startsWith("Produk yang penjualannya naik") || l.startsWith("Produk yang sering dibeli barengan") || l.startsWith("Jam tersibuk toko"),
+          );
+          setAiAnalysis(lines.join("\n"));
+        },
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Gagal menganalisis data penjualan.";
+      setAiError(message);
+    } finally {
+      setIsAiAnalyzing(false);
+    }
   }
 
   return (
@@ -3435,6 +3557,9 @@ function ReportsPage({
                 if (isForecasting) return;
                 setIsForecasting(true);
                 setForecastProgress(0);
+                setAiAnalysis("");
+                setAiError("");
+                setIsAiAnalyzing(false);
                 const interval = window.setInterval(() => {
                   setForecastProgress((prev) => {
                     const next = prev + Math.random() * 15 + 2;
@@ -3572,6 +3697,112 @@ function ReportsPage({
           </table>
         </div>
       </section>
+      {forecastGenerated ? (
+        <>
+        <section className="panel surface--accent">
+          <h2 className="card-title" style={{ fontSize: 28 }}>
+            AI Analisis Penjualan
+          </h2>
+          <div className="spacer-top">
+            {isAiAnalyzing ? (
+              <div className="ai-analysis-loading">
+                <div className="ai-analysis-loading__spinner" />
+                <span>Menganalisis data penjualan dengan AI...</span>
+              </div>
+            ) : aiError ? (
+              <article className="notice notice--error">
+                Gagal menganalisis: {aiError}
+              </article>
+            ) : null}
+            {aiAnalysis ? (
+              <div className="ai-analysis-summary spacer-bottom" dangerouslySetInnerHTML={{ __html: aiAnalysis }} />
+            ) : null}
+            <div className="analysis-tables">
+              <div className="table-shell">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Produk</th>
+                      <th>Periode Lalu</th>
+                      <th>Periode Ini</th>
+                      <th>Perubahan</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {productChanges.map((p, i) => (
+                      <tr key={i}>
+                        <td>{p.name}</td>
+                        <td>{p.prevQty}</td>
+                        <td>{p.currentQty}</td>
+                        <td className={p.change >= 0 ? "change-up" : "change-down"}>
+                          {p.change >= 0 ? "▲" : "▼"} {Math.abs(p.change)}%
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="table-shell">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Produk Dibeli Bersamaan</th>
+                      <th>Frekuensi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topPairs.map(([pair, count], i) => (
+                      <tr key={i}>
+                        <td>{pair.split(" ||| ").join(" + ")}</td>
+                        <td>{count}x</td>
+                      </tr>
+                    ))}
+                    {topPairs.length === 0 ? (
+                      <tr>
+                        <td colSpan={2} style={{ color: "var(--color-muted)" }}>
+                          Tidak ada data pembelian bersamaan
+                        </td>
+                      </tr>
+                    ) : null}
+                  </tbody>
+                </table>
+              </div>
+              <div className="table-shell">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Jam / Hari</th>
+                      <th>Transaksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedHours.map(([hour, count], i) => (
+                      <tr key={`h-${i}`}>
+                        <td>{String(hour).padStart(2, "0")}.00 – {String(hour).padStart(2, "0")}.59</td>
+                        <td>{count}</td>
+                      </tr>
+                    ))}
+                    {sortedDays.map(([day, count], i) => (
+                      <tr key={`d-${i}`}>
+                        <td>{day}</td>
+                        <td>{count}</td>
+                      </tr>
+                    ))}
+                    {sortedHours.length === 0 && sortedDays.length === 0 ? (
+                      <tr>
+                        <td colSpan={2} style={{ color: "var(--color-muted)" }}>
+                          Tidak ada data transaksi
+                        </td>
+                      </tr>
+                    ) : null}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+        </>
+      ) : null}
       {forecastGenerated ? (
         <section className="panel">
           <h2 className="card-title" style={{ fontSize: 28 }}>
