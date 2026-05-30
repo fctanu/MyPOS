@@ -3437,9 +3437,17 @@ function ReportsPage({
       const systemPrompt = `Anda adalah asisten yang menjawab dengan SANGAT SINGKAT dan TEPAT.
 
 Outputkan persis seperti template berikut, jangan tambahkan apapun:
-Top 3 produk dengan pertumbuhan terbaik : <strong>1. ProdukA (+XX%), 2. ProdukB (+YY%), 3. ProdukC (+ZZ%)</strong>
-Produk yang sering dibeli barengan : <strong>1. A + B, 2. C + D, 3. E + F</strong>
-Jam tersibuk toko : <strong>- Hari {hari_ramai}, - Pukul {jam_mulai} hingga {jam_selesai}</strong> (gabung dalam satu baris)
+Top 3 produk dengan pertumbuhan terbaik :
+<strong>1. ProdukA (+XX%)
+2. ProdukB (+YY%)
+3. ProdukC (+ZZ%)</strong>
+Produk yang sering dibeli barengan :
+<strong>1. A + B
+2. C + D
+3. E + F</strong>
+Jam tersibuk toko :
+<strong>- Hari {hari_ramai}
+- Pukul {jam_mulai} hingga {jam_selesai}</strong>
 
 Gunakan format 24 jam (01:00 bukan 1:00). Gunakan <strong> tag untuk teks setelah titik dua.
 JANGAN memberikan penjelasan tambahan, JANGAN menggunakan markdown.`;
@@ -3472,10 +3480,7 @@ JANGAN memberikan penjelasan tambahan, JANGAN menggunakan markdown.`;
           { role: "user", content: JSON.stringify(userData, null, 2) },
         ],
         (text) => {
-          const lines = text.split("\n").filter(
-            (l) => l.startsWith("Top 3 produk dengan pertumbuhan terbaik") || l.startsWith("Produk yang sering dibeli barengan") || l.startsWith("Jam tersibuk toko"),
-          );
-          setAiAnalysis(lines.join("\n"));
+          setAiAnalysis(text);
         },
       );
     } catch (err) {
