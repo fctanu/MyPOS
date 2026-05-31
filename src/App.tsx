@@ -21,7 +21,6 @@ import {
   useNavigate,
 } from "react-router-dom";
 import * as XLSX from "xlsx";
-import { callOpenRouterStream } from "./shared/openrouter";
 import { salesSeedData } from "./shared/salesSeedData";
 
 type Toast = {
@@ -1578,10 +1577,7 @@ function TransactionsPage({
   }
 
   function handlePrintReceipt() {
-    if (!completedSale) {
-      return;
-    }
-
+    if (!completedSale) return;
     try {
       printSaleReceipt(completedSale, session?.name ?? "");
       setPrintStatus(
@@ -1670,55 +1666,58 @@ function TransactionsPage({
           </div>
         </section>
         {showCreateCustomer ? (
-          <section className="panel">
-            <h2 className="card-title" style={{ fontSize: 28 }}>
-              Buat Pelanggan Baru
-            </h2>
-            <div className="form-stack spacer-top">
-              <label className="field-group">
-                <span className="field-label">Nama</span>
-                <input
-                  className="field"
-                  value={newCustomerName}
-                  onChange={(event) => setNewCustomerName(event.target.value)}
-                />
-              </label>
-              <label className="field-group">
-                <span className="field-label">Telepon</span>
-                <input
-                  className="field"
-                  value={newCustomerPhone}
-                  onChange={(event) => setNewCustomerPhone(event.target.value)}
-                />
-              </label>
-              <label className="field-group">
-                <span className="field-label">Alamat</span>
-                <textarea
-                  className="textarea-field"
-                  value={newCustomerAddress}
-                  onChange={(event) =>
-                    setNewCustomerAddress(event.target.value)
-                  }
-                />
-              </label>
-              <div className="button-row">
-                <button
-                  type="button"
-                  className="button button--primary"
-                  onClick={createCustomer}
-                >
-                  Simpan
-                </button>
-                <button
-                  type="button"
-                  className="button button--ghost"
-                  onClick={() => setShowCreateCustomer(false)}
-                >
-                  Batal
-                </button>
+          <div className="modal-overlay" onClick={() => setShowCreateCustomer(false)}>
+            <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+              <h2 className="card-title" style={{ fontSize: 24 }}>
+                Buat Pelanggan Baru
+              </h2>
+              <div className="form-stack spacer-top">
+                <label className="field-group">
+                  <span className="field-label">Nama</span>
+                  <input
+                    className="field"
+                    value={newCustomerName}
+                    onChange={(event) => setNewCustomerName(event.target.value)}
+                  />
+                </label>
+                <label className="field-group">
+                  <span className="field-label">Telepon</span>
+                  <input
+                    className="field"
+                    value={newCustomerPhone}
+                    onChange={(event) => setNewCustomerPhone(event.target.value)}
+                  />
+                </label>
+                <label className="field-group">
+                  <span className="field-label">Alamat</span>
+                  <textarea
+                    className="textarea-field"
+                    value={newCustomerAddress}
+                    onChange={(event) =>
+                      setNewCustomerAddress(event.target.value)
+                    }
+                  />
+                </label>
+                <div className="button-row">
+                  <button
+                    type="button"
+                    className="button button--primary"
+                    disabled={!newCustomerName.trim()}
+                    onClick={createCustomer}
+                  >
+                    Simpan
+                  </button>
+                  <button
+                    type="button"
+                    className="button button--ghost"
+                    onClick={() => setShowCreateCustomer(false)}
+                  >
+                    Batal
+                  </button>
+                </div>
               </div>
             </div>
-          </section>
+          </div>
         ) : null}
       </div>
     );
@@ -1901,22 +1900,7 @@ function TransactionsPage({
             >
               Cetak Struk
             </button>
-            <div className="two-col">
-              <button
-                type="button"
-                className="button button--secondary button--full"
-                onClick={resetTransaction}
-              >
-                Bagikan ke WhatsApp
-              </button>
-              <button
-                type="button"
-                className="button button--ghost button--full"
-                onClick={resetTransaction}
-              >
-                Salin Teks Struk
-              </button>
-            </div>
+
             <article className="notice notice--success">
               {receiptMessage}
             </article>
@@ -2121,7 +2105,7 @@ function TransactionsPage({
               <span>Total</span>
               <span>{cartCount} item</span>
             </div>
-            <div className="summary-box__value">{formatCurrency(subtotal)}</div>
+            <div className="summary-box__value">{subtotal.toLocaleString("id-ID")}</div>
           </div>
           <div className="spacer-top">
             <button
@@ -2162,7 +2146,7 @@ function ProductsPage({
   tab: ProductTab;
   setTab: (tab: ProductTab) => void;
 }) {
-  const { categories, setCategories, products, setProducts } = useAppModel();
+  const { categories, setCategories, products, setProducts, sales } = useAppModel();
   const [importMessage, setImportMessage] = useState("");
   const [isDragActive, setIsDragActive] = useState(false);
   const [categoryName, setCategoryName] = useState("SNACK");
@@ -2175,9 +2159,12 @@ function ProductsPage({
   const [adjustingProductId, setAdjustingProductId] = useState<string | null>(
     null,
   );
-  const [adjustQuantity, setAdjustQuantity] = useState("12");
+  const [adjustQuantity, setAdjustQuantity] = useState("100");
   const [adjustNotice, setAdjustNotice] = useState("Restok mingguan");
   const [notice, setNotice] = useState("");
+  const [restockHistory, setRestockHistory] = useState<
+    { productName: string; quantity: number; notice: string; date: string }[]
+  >([]);
   const [isEditingProducts, setIsEditingProducts] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -2317,6 +2304,18 @@ function ProductsPage({
           : product,
       ),
     );
+    const product = products.find((p) => p.id === adjustingProductId);
+    if (product) {
+      setRestockHistory((prev) => [
+        {
+          productName: product.name,
+          quantity: delta,
+          notice: adjustNotice,
+          date: new Date().toLocaleString("id-ID"),
+        },
+        ...prev,
+      ]);
+    }
     setNotice(`Stok diperbarui: ${adjustNotice}.`);
     setAdjustingProductId(null);
   }
@@ -2328,6 +2327,60 @@ function ProductsPage({
       ),
     );
   }
+
+  const topProductCounts: Record<string, number> = {};
+  sales.forEach((sale) => {
+    sale.items.forEach((item) => {
+      topProductCounts[item.productName] =
+        (topProductCounts[item.productName] ?? 0) + item.quantity;
+    });
+  });
+  const forecastRows = products
+    .map((product) => {
+      const quantity = topProductCounts[product.name] ?? 0;
+      const stock = product.stock;
+      const restockThreshold = product.lowStockThreshold;
+      const warningThreshold = Math.ceil(restockThreshold * 1.5);
+      const status =
+        stock <= restockThreshold
+          ? "Restock"
+          : stock <= warningThreshold
+            ? "Perlu Dipantau"
+            : "Aman";
+      const statusTone =
+        stock <= restockThreshold
+          ? "danger"
+          : stock <= warningThreshold
+            ? "warning"
+            : "success";
+      const suggestedRestock =
+        stock <= restockThreshold
+          ? DEFAULT_PRODUCT_STOCK * 2 - stock
+          : 0;
+
+      return {
+        productId: product.id,
+        productName: product.name,
+        quantity,
+        stock,
+        restockThreshold,
+        status,
+        statusTone,
+        suggestedRestock,
+        meterValue: Math.min(
+          Math.round((stock / DEFAULT_PRODUCT_STOCK) * 100),
+          100,
+        ),
+      };
+    })
+    .sort((left, right) => {
+      const priority = { danger: 0, warning: 1, success: 2 };
+      return (
+        priority[left.statusTone] - priority[right.statusTone] ||
+        left.stock - right.stock ||
+        right.quantity - left.quantity
+      );
+    });
 
   function parseEditableNumber(value: string) {
     const parsed = Number.parseInt(value, 10);
@@ -2573,56 +2626,62 @@ function ProductsPage({
             <button
               type="button"
               className="button button--primary"
-              onClick={() => setEditingCategoryId(null)}
+              onClick={() => {
+                setEditingCategoryId("");
+                setCategoryName("");
+                setCategoryDescription("");
+              }}
             >
               Tambah Kategori
             </button>
           </div>
-          <section
-            className="panel surface--soft spacer-top"
-            id="category-form"
-          >
-            <h2 className="card-title" style={{ fontSize: 24 }}>
-              {editingCategoryId ? "Edit Kategori" : "Tambah Kategori Baru"}
-            </h2>
-            <div className="form-stack spacer-top">
-              <label className="field-group">
-                <span className="field-label">Nama Kategori</span>
-                <input
-                  className="field"
-                  type="text"
-                  value={categoryName}
-                  onChange={(event) => setCategoryName(event.target.value)}
-                />
-              </label>
-              <label className="field-group">
-                <span className="field-label">Deskripsi</span>
-                <textarea
-                  className="textarea-field"
-                  value={categoryDescription}
-                  onChange={(event) =>
-                    setCategoryDescription(event.target.value)
-                  }
-                />
-              </label>
-              <div className="button-row">
-                <button
-                  type="button"
-                  className="button button--primary"
-                  onClick={saveCategory}
-                >
-                  Simpan
-                </button>
-                <button
-                  type="button"
-                  className="button button--ghost"
-                  onClick={() => setEditingCategoryId(null)}
-                >
-                  Batal
-                </button>
+          {editingCategoryId !== null ? (
+            <div className="modal-overlay" onClick={() => setEditingCategoryId(null)}>
+              <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+                <h2 className="card-title" style={{ fontSize: 24 }}>
+                  {editingCategoryId ? "Edit Kategori" : "Tambah Kategori Baru"}
+                </h2>
+                <div className="form-stack spacer-top">
+                  <label className="field-group">
+                    <span className="field-label">Nama Kategori</span>
+                    <input
+                      className="field"
+                      type="text"
+                      value={categoryName}
+                      onChange={(event) => setCategoryName(event.target.value)}
+                    />
+                  </label>
+                  <label className="field-group">
+                    <span className="field-label">Deskripsi</span>
+                    <textarea
+                      className="textarea-field"
+                      value={categoryDescription}
+                      onChange={(event) =>
+                        setCategoryDescription(event.target.value)
+                      }
+                    />
+                  </label>
+                  <div className="button-row">
+                    <button
+                      type="button"
+                      className="button button--primary"
+                      disabled={!categoryName.trim()}
+                      onClick={saveCategory}
+                    >
+                      Simpan
+                    </button>
+                    <button
+                      type="button"
+                      className="button button--ghost"
+                      onClick={() => setEditingCategoryId(null)}
+                    >
+                      Batal
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
-          </section>
+          ) : null}
           {notice ? (
             <article className="notice notice--success spacer-top">
               {notice}
@@ -2675,28 +2734,51 @@ function ProductsPage({
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>SKU</th>
-                  <th>Nama</th>
+                  <th>Produk</th>
+                  <th>Total Terjual</th>
                   <th>Stok Saat Ini</th>
-                  <th>Threshold</th>
-                  <th></th>
+                  <th>Minimum</th>
+                  <th>Stock Status</th>
+                  <th>Saran Restok</th>
                 </tr>
               </thead>
               <tbody>
-                {products.map((product) => (
-                  <tr key={product.id}>
-                    <td className="mono">{product.sku}</td>
-                    <td>{product.name}</td>
-                    <td>{product.stock}</td>
-                    <td>{product.lowStockThreshold}</td>
-                    <td className="text-right">
-                      <button
-                        type="button"
-                        className="button button--ghost"
-                        onClick={() => setAdjustingProductId(product.id)}
+                {forecastRows.map((row) => (
+                  <tr key={row.productId}>
+                    <td>{row.productName}</td>
+                    <td>{row.quantity}</td>
+                    <td>{row.stock} item</td>
+                    <td>{row.restockThreshold} item</td>
+                    <td>
+                      <div
+                        className={`forecast-meter forecast-meter--${row.statusTone}`}
                       >
-                        Sesuaikan
-                      </button>
+                        <div className="forecast-meter__track">
+                          <span
+                            className="forecast-meter__fill"
+                            style={{ width: `${row.meterValue}%` }}
+                          />
+                        </div>
+                        <div className="forecast-meter__meta">
+                          <span>{row.status}</span>
+                          <span>{row.meterValue}%</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      {row.suggestedRestock ? (
+                        <button
+                          type="button"
+                          className="button button--ghost"
+                          onClick={() => {
+                            setAdjustQuantity(String(row.suggestedRestock));
+                            setAdjustNotice("Restok mingguan");
+                            setAdjustingProductId(row.productId);
+                          }}
+                        >
+                          Restock {row.suggestedRestock} item
+                        </button>
+                      ) : "Stok cukup"}
                     </td>
                   </tr>
                 ))}
@@ -2704,48 +2786,90 @@ function ProductsPage({
             </table>
           </div>
           {adjustingProductId ? (
-            <section className="panel surface--soft spacer-top">
-              <h2 className="card-title" style={{ fontSize: 24 }}>
-                Sesuaikan Stok
-              </h2>
-              <div className="form-stack spacer-top">
-                <label className="field-group">
-                  <span className="field-label">
-                    Jumlah (positif / negatif)
-                  </span>
-                  <input
-                    className="field"
-                    value={adjustQuantity}
-                    onChange={(event) => setAdjustQuantity(event.target.value)}
-                  />
-                </label>
-                <label className="field-group">
-                  <span className="field-label">Catatan</span>
-                  <input
-                    className="field"
-                    value={adjustNotice}
-                    onChange={(event) => setAdjustNotice(event.target.value)}
-                  />
-                </label>
-                <div className="button-row">
-                  <button
-                    type="button"
-                    className="button button--primary"
-                    onClick={applyStockAdjustment}
-                  >
-                    Simpan Stok
-                  </button>
-                  <button
-                    type="button"
-                    className="button button--ghost"
-                    onClick={() => setAdjustingProductId(null)}
-                  >
-                    Batal
-                  </button>
+            <div className="modal-overlay" onClick={() => setAdjustingProductId(null)}>
+              <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+                <h2 className="card-title" style={{ fontSize: 24 }}>
+                  Sesuaikan Stok
+                </h2>
+                <div className="form-stack spacer-top">
+                  <label className="field-group">
+                    <span className="field-label">
+                      Jumlah
+                    </span>
+                    <input
+                      className="field"
+                      value={adjustQuantity}
+                      onChange={(event) => setAdjustQuantity(event.target.value)}
+                    />
+                  </label>
+                  <label className="field-group">
+                    <span className="field-label">Catatan</span>
+                    <input
+                      className="field"
+                      value={adjustNotice}
+                      onChange={(event) => setAdjustNotice(event.target.value)}
+                    />
+                  </label>
+                  <div className="button-row">
+                    <button
+                      type="button"
+                      className="button button--primary"
+                      onClick={applyStockAdjustment}
+                    >
+                      Simpan Stok
+                    </button>
+                    <button
+                      type="button"
+                      className="button button--ghost"
+                      onClick={() => setAdjustingProductId(null)}
+                    >
+                      Batal
+                    </button>
+                  </div>
                 </div>
               </div>
-            </section>
+            </div>
           ) : null}
+
+          <section className="panel spacer-top">
+            <h2 className="card-title" style={{ fontSize: 30 }}>
+              Riwayat Restok
+            </h2>
+            <p className="section-subtitle">
+              Daftar restok yang berhasil diproses.
+            </p>
+            {restockHistory.length ? (
+              <div className="table-shell spacer-top">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Tanggal</th>
+                      <th>Produk</th>
+                      <th style={{ textAlign: "right" }}>Jumlah</th>
+                      <th>Catatan</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {restockHistory.map((entry, i) => (
+                      <tr key={i}>
+                        <td>{entry.date}</td>
+                        <td>{entry.productName}</td>
+                        <td style={{ textAlign: "right", fontFamily: "Consolas, SFMono-Regular, monospace", fontWeight: 600, color: "var(--color-success)" }}>+{entry.quantity}</td>
+                        <td>{entry.notice}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="empty-state spacer-top">
+                <h3 className="empty-state__title">Belum ada restok</h3>
+                <p className="empty-state__copy">
+                  Restok yang berhasil diproses akan muncul di sini.
+                </p>
+              </div>
+            )}
+          </section>
         </section>
       ) : null}
     </div>
@@ -2753,13 +2877,13 @@ function ProductsPage({
 }
 
 function RefundsRoute() {
-  const [selectedSaleId, setSelectedSaleId] = useState<string>("sale-1049");
+  const [selectedSaleId, setSelectedSaleId] = useState<string | null>(null);
   const pageClass = selectedSaleId
     ? "refunds-selected-page"
     : "refunds-empty-page";
 
   return (
-    <ProtectedPage title="Refund" pageClass={pageClass}>
+    <ProtectedPage title="Refund & History" pageClass={pageClass}>
       <RefundsPage
         selectedSaleId={selectedSaleId}
         setSelectedSaleId={setSelectedSaleId}
@@ -2791,17 +2915,17 @@ function RefundsPage({
   const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null);
 
   const [selectedMonth, setSelectedMonth] = useState(() => {
-    const months = [...new Set(salesSeedData.map((s) => s.createdAt.slice(0, 7)))].sort();
+    const months = [...new Set(sales.map((s) => s.createdAt.slice(0, 7)))].sort();
     return months[months.length - 1] || "2026-01";
   });
-  const availableMonths = [...new Set(salesSeedData.map((s) => s.createdAt.slice(0, 7)))].sort();
+  const availableMonths = [...new Set(sales.map((s) => s.createdAt.slice(0, 7)))].sort();
   const monthLabel = (ym: string) => {
     const [y, m] = ym.split("-");
     const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
     return `${months[parseInt(m) - 1]} ${y}`;
   };
 
-  const refundableSales = salesSeedData
+  const refundableSales = sales
     .filter((s) => {
       if (s.createdAt.slice(0, 7) !== selectedMonth) return false;
       if (!search) return true;
@@ -2880,6 +3004,7 @@ function RefundsPage({
     addToast(
       `Refund berhasil - pengembalian dana telah diproses.\nRefund terakhir: ${newRefund.saleReceiptNumber} - ${formatCurrency(newRefund.total)}`,
     );
+    setSelectedSaleId(null);
   }
 
   return (
@@ -2968,7 +3093,14 @@ function RefundsPage({
                               <button
                                 type="button"
                                 className={`button button--sm${sale.refundable ? " button--primary" : " button--disabled-orange"}`}
-                                onClick={() => sale.refundable && setSelectedSaleId(sale.id)}
+                                onClick={() => {
+                                  if (sale.refundable) {
+                                    setQuantities({});
+                                    setReason("Keluhan pelanggan");
+                                    setOwnerId("");
+                                    setSelectedSaleId(sale.id);
+                                  }
+                                }}
                                 disabled={!sale.refundable}
                                 title={sale.refundable ? "Pilih untuk refund" : "Melebihi batas 3 hari"}
                               >
@@ -3004,17 +3136,15 @@ function RefundsPage({
           </p>
         ) : null}
       </section>
-      <section className="panel">
-        <h2 className="card-title" style={{ fontSize: 30 }}>
-          {selectedSale
-            ? `${selectedSale.receiptNumber} - ${selectedSale.customerName}`
-            : "Form Refund"}
-        </h2>
-        <p className="section-subtitle">
-          Pilih kuantitas per item lalu kirim sebagai satu catatan refund.
-        </p>
-        {selectedSale ? (
-          <>
+      {selectedSale ? (
+        <div className="modal-overlay" onClick={() => setSelectedSaleId(null)}>
+          <div className="modal-card" style={{ minWidth: 560, maxHeight: "90vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
+            <h2 className="card-title" style={{ fontSize: 24, marginBottom: 4 }}>
+              {selectedSale.receiptNumber} - {selectedSale.customerName}
+            </h2>
+            <p className="section-subtitle" style={{ marginTop: 0 }}>
+              Pilih kuantitas per item lalu kirim sebagai satu catatan refund.
+            </p>
             {!selectedSaleRefundable ? (
               <article className="notice notice--error spacer-top">
                 Struk ini sudah melewati batas refund 3 hari.
@@ -3112,16 +3242,9 @@ function RefundsPage({
                 Proses Refund
               </button>
             </div>
-          </>
-        ) : (
-          <div className="empty-state spacer-top">
-            <h3 className="empty-state__title">Pilih transaksi lebih dulu</h3>
-            <p className="empty-state__copy">
-              Form refund akan aktif setelah sale dipilih.
-            </p>
           </div>
-        )}
-      </section>
+        </div>
+      ) : null}
       <section className="panel">
         <h2 className="card-title" style={{ fontSize: 30 }}>
           Riwayat Refund
@@ -3203,35 +3326,71 @@ function ReportsPage({
   setGenerated: (value: boolean) => void;
 }) {
   const { sales, refunds, products, reports, setReports } = useAppModel();
-  const [periodStart, setPeriodStart] = useState("2026-01-01");
-  const [periodEnd, setPeriodEnd] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  });
+  const availableMonths = [...new Set(sales.map((s) => s.createdAt.slice(0, 7)))].sort();
+  const [selectedMonth, setSelectedMonth] = useState(availableMonths[availableMonths.length - 1] || "2026-01");
+  const periodStart = selectedMonth + "-01";
+  const periodEnd = (() => {
+    const [y, m] = selectedMonth.split("-").map(Number);
+    const lastDay = new Date(y, m, 0).getDate();
+    return `${y}-${String(m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+  })();
+  const prevMonthDate = new Date(Number(selectedMonth.split("-")[0]), Number(selectedMonth.split("-")[1]) - 2, 1);
+  const prevMonthStr = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, "0")}`;
   const [isGenerating, setIsGenerating] = useState(false);
   const [reportProgress, setReportProgress] = useState(0);
   const [periodError, setPeriodError] = useState("");
-  const [forecastGenerated, setForecastGenerated] = useState(false);
-  const [isForecasting, setIsForecasting] = useState(false);
-  const [forecastProgress, setForecastProgress] = useState(0);
+  const [isAiAnalysisRunning, setIsAiAnalysisRunning] = useState(false);
+  const [aiAnalysisProgress, setAiAnalysisProgress] = useState(0);
+
   const [aiApiKey, setAiApiKey] = useState("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");
   const [aiAnalysis, setAiAnalysis] = useState("");
   const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
   const [aiError, setAiError] = useState("");
+  const [aiTableSnapshot, setAiTableSnapshot] = useState<{
+    productChanges: { name: string; currentQty: number; prevQty: number; change: number }[];
+    topPairs: [string, number][];
+    sortedHours: [string, number][];
+    sortedDays: [string, number][];
+  } | null>(null);
+  const [snapshot, setSnapshot] = useState<{
+    salesTotal: number;
+    refundTotal: number;
+    totalTransaksi: number;
+    stockMovement: number;
+    netRevenue: number;
+    avgTransaksi: number;
+    estimatedGrossProfit: number;
+    productChanges: { name: string; currentQty: number; prevQty: number; change: number }[];
+    topPairs: [string, number][];
+    sortedHours: [string, number][];
+    sortedDays: [string, number][];
+  } | null>(null);
 
-  const salesTotal = sales.reduce((total, sale) => total + sale.total, 0);
+  const currentSalesAI = sales.filter(
+    (s) => s.createdAt >= periodStart && s.createdAt <= periodEnd + "T23:59:59",
+  );
+  const prevStartStr = prevMonthStr + "-01";
+  const [prevY, prevM] = prevMonthStr.split("-").map(Number);
+  const prevLastDay = new Date(prevY, prevM, 0).getDate();
+  const prevEndStr = `${prevY}-${String(prevM).padStart(2, "0")}-${String(prevLastDay).padStart(2, "0")}`;
+
+  const prevSalesAI = sales.filter(
+    (s) => s.createdAt >= prevStartStr && s.createdAt <= prevEndStr + "T23:59:59",
+  );
+
+  const salesTotal = currentSalesAI.reduce((total, sale) => total + sale.total, 0);
   const refundTotal = refunds.reduce(
     (total, refund) => total + refund.total,
     0,
   );
   const netRevenue = Math.max(salesTotal - refundTotal, 0);
-  const averageTransactionValue = sales.length
-    ? Math.round(salesTotal / sales.length)
+  const averageTransactionValue = currentSalesAI.length
+    ? Math.round(salesTotal / currentSalesAI.length)
     : 0;
   const productCostById = new Map<string, number>(
     products.map((product) => [product.id, product.netPrice ?? 0]),
   );
-  const estimatedGrossProfit = sales.reduce(
+  const estimatedGrossProfit = currentSalesAI.reduce(
     (total, sale) =>
       total +
       sale.items.reduce((sum, item) => {
@@ -3240,7 +3399,7 @@ function ReportsPage({
       }, 0),
     0,
   );
-  const stockMovement = sales.reduce(
+  const stockMovement = currentSalesAI.reduce(
     (total, sale) =>
       total + sale.items.reduce((sum, item) => sum + item.quantity, 0),
     0,
@@ -3257,67 +3416,6 @@ function ReportsPage({
     .sort((left, right) => right[1] - left[1])
     .slice(0, 3);
   const topProduct = topProducts[0]?.[0] ?? "SEDAAP MIE GR 91GR (40)";
-  const forecastRows = products
-    .map((product) => {
-      const quantity = topProductCounts[product.name] ?? 0;
-      const stock = product.stock;
-      const restockThreshold = product.lowStockThreshold;
-      const warningThreshold = Math.ceil(restockThreshold * 1.5);
-      const status =
-        stock <= restockThreshold
-          ? "Restock"
-          : stock <= warningThreshold
-            ? "Perlu Dipantau"
-            : "Aman";
-      const statusTone =
-        stock <= restockThreshold
-          ? "danger"
-          : stock <= warningThreshold
-            ? "warning"
-            : "success";
-      const suggestedRestock =
-        stock <= restockThreshold
-          ? Math.max(DEFAULT_PRODUCT_STOCK - stock, Math.ceil(quantity * 2.5))
-          : 0;
-
-      return {
-        productId: product.id,
-        productName: product.name,
-        quantity,
-        stock,
-        restockThreshold,
-        status,
-        statusTone,
-        suggestedRestock,
-        meterValue: Math.min(
-          Math.round((stock / DEFAULT_PRODUCT_STOCK) * 100),
-          100,
-        ),
-      };
-    })
-    .sort((left, right) => {
-      const priority = { danger: 0, warning: 1, success: 2 };
-      return (
-        priority[left.statusTone] - priority[right.statusTone] ||
-        left.stock - right.stock ||
-        right.quantity - left.quantity
-      );
-    });
-
-  const currentSalesAI = sales.filter(
-    (s) => s.createdAt >= periodStart && s.createdAt <= periodEnd + "T23:59:59",
-  );
-  const startDate = new Date(periodStart + "T00:00:00");
-  const endDate = new Date(periodEnd + "T00:00:00");
-  const periodDays = Math.round((endDate.getTime() - startDate.getTime()) / 86400000) + 1;
-  const prevEnd = new Date(startDate.getTime() - 86400000);
-  const prevStart = new Date(prevEnd.getTime() - (periodDays - 1) * 86400000);
-  const prevStartStr = prevStart.toISOString().slice(0, 10);
-  const prevEndStr = prevEnd.toISOString().slice(0, 10);
-
-  const prevSalesAI = sales.filter(
-    (s) => s.createdAt >= prevStartStr && s.createdAt <= prevEndStr + "T23:59:59",
-  );
 
   const currentCounts: Record<string, number> = {};
   currentSalesAI.forEach((s) => {
@@ -3392,6 +3490,18 @@ function ReportsPage({
     setPeriodError("");
     setIsGenerating(true);
     setReportProgress(0);
+    const snapSalesTotal = salesTotal;
+    const snapRefundTotal = refundTotal;
+    const snapNetRevenue = netRevenue;
+    const snapAvgTransaksi = averageTransactionValue;
+    const snapEstimatedGrossProfit = estimatedGrossProfit;
+    const snapStockMovement = stockMovement;
+    const snapProductChanges = productChanges;
+    const snapTopPairs = topPairs;
+    const snapSortedHours = sortedHours;
+    const snapSortedDays = sortedDays;
+    const snapTopProduct = topProduct;
+    const snapTotalTransaksi = currentSalesAI.length;
     const interval = window.setInterval(() => {
       setReportProgress((prev) => {
         const next = prev + Math.random() * 15 + 2;
@@ -3399,6 +3509,19 @@ function ReportsPage({
           window.clearInterval(interval);
           setIsGenerating(false);
           setGenerated(true);
+          setSnapshot({
+            salesTotal: snapSalesTotal,
+            refundTotal: snapRefundTotal,
+            totalTransaksi: snapTotalTransaksi,
+            stockMovement: snapStockMovement,
+            netRevenue: snapNetRevenue,
+            avgTransaksi: snapAvgTransaksi,
+            estimatedGrossProfit: snapEstimatedGrossProfit,
+            productChanges: snapProductChanges,
+            topPairs: snapTopPairs,
+            sortedHours: snapSortedHours,
+            sortedDays: snapSortedDays,
+          });
           const maxRptNum = reports.reduce((max, r) => {
             const num = parseInt(r.id.replace("RPT-", ""), 10);
             return isNaN(num) ? max : Math.max(max, num);
@@ -3409,9 +3532,9 @@ function ReportsPage({
               createdAt: new Date().toISOString(),
               periodStart,
               periodEnd,
-              salesTotal,
-              refundTotal,
-              topProduct,
+              salesTotal: snapSalesTotal,
+              refundTotal: snapRefundTotal,
+              topProduct: snapTopProduct,
             },
             ...current,
           ]);
@@ -3422,110 +3545,64 @@ function ReportsPage({
     }, 200);
   }
 
-  useEffect(() => {
-    if (forecastGenerated && !isForecasting && !isAiAnalyzing && !aiAnalysis && !aiError && aiApiKey) {
-      analyzeSalesWithAI();
-    }
-  }, [forecastGenerated, isForecasting]);
 
-  async function analyzeSalesWithAI() {
-    if (!aiApiKey) return;
+
+  function analyzeSalesWithAI() {
     setIsAiAnalyzing(true);
     setAiError("");
 
-    try {
-      const systemPrompt = `Anda adalah asisten yang menjawab dengan SANGAT SINGKAT dan TEPAT.
+    const frozenChanges = snapshot?.productChanges ?? productChanges;
+    const frozenPairs = snapshot?.topPairs ?? topPairs;
+    const frozenHours = snapshot?.sortedHours ?? sortedHours;
+    const frozenDays = snapshot?.sortedDays ?? sortedDays;
+    setAiTableSnapshot({ productChanges: frozenChanges, topPairs: frozenPairs, sortedHours: frozenHours, sortedDays: frozenDays });
 
-Outputkan persis seperti template berikut, jangan tambahkan apapun:
+    const top3 = frozenChanges.slice(0, 3);
+    const pairs = frozenPairs.slice(0, 3);
+    const busiestDay = frozenDays[0];
+    const busiestHour = frozenHours[0];
+
+    const analysis = `
 Top 3 produk dengan penjualan terbaik :
-<strong>1. ProdukA (+XX%)
-2. ProdukB (+YY%)
-3. ProdukC (+ZZ%)</strong>
+<strong>${top3.map((p, i) => `${i + 1}. ${p.name} (${p.change >= 0 ? "+" : ""}${p.change}%)`).join("\n")}</strong>
 Produk yang sering dibeli barengan :
-<strong>1. A + B
-2. C + D
-3. E + F</strong>
+<strong>${pairs.map(([pair, count], i) => `${i + 1}. ${pair.split(" ||| ").join(" + ")}`).join("\n")}</strong>
 Jam tersibuk toko :
-<strong>- Hari {hari_ramai}
-- Pukul {jam_mulai} hingga {jam_selesai}</strong>
+<strong>- Hari ${busiestDay[0]}
+- Pukul ${String(busiestHour[0]).padStart(2, "0")}.00 – ${String(busiestHour[0]).padStart(2, "0")}.59</strong>
+`.trim();
 
-Gunakan format 24 jam (01:00 bukan 1:00). Gunakan <strong> tag untuk teks setelah titik dua.
-JANGAN memberikan penjelasan tambahan, JANGAN menggunakan markdown.`;
-
-      const userData = {
-        periode: `${periodStart} hingga ${periodEnd}`,
-        periodeSebelumnya: `${prevStartStr} hingga ${prevEndStr}`,
-        totalTransaksiPeriodeIni: currentSalesAI.length,
-        totalTransaksiPeriodeSebelumnya: prevSalesAI.length,
-        totalPendapatanPeriodeIni: currentRevenue,
-        totalPendapatanPeriodeSebelumnya: prevRevenue,
-        perubahanProduk: productChanges.map(
-          (p) => `${p.name}: ${p.change >= 0 ? "+" : ""}${p.change}% (${p.prevQty} → ${p.currentQty})`,
-        ),
-        produkBersamaan: topPairs.map(
-          ([pair, count]) => `${pair.split(" ||| ").join(" + ")} (${count}x)`,
-        ),
-        jamOperasional: sortedHours.map(
-          ([hour, count]) => `${hour}:00 = ${count} transaksi`,
-        ),
-        hariOperasional: sortedDays.map(
-          ([day, count]) => `${day}: ${count} transaksi`,
-        ),
-      };
-
-      await callOpenRouterStream(
-        aiApiKey,
-        [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: JSON.stringify(userData, null, 2) },
-        ],
-        (text) => {
-          setAiAnalysis(text);
-        },
-      );
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Gagal menganalisis data penjualan.";
-      setAiError(message);
-    } finally {
+    const delay = 5000 + Math.random() * 3000;
+    setTimeout(() => {
+      setAiAnalysis(analysis);
       setIsAiAnalyzing(false);
-    }
+    }, delay);
   }
 
   return (
     <div className="page-stack">
       <section className="panel">
-        <h1 className="page-heading">Kontrol Periode</h1>
+        <h1 className="page-heading">Pilih Periode</h1>
         <p className="section-subtitle">
-          Buat snapshot laporan atau perkiraan dari rentang waktu yang dipilih.
+          Simpan kondisi laporan atau perkiraan untuk periode tertentu.
         </p>
         <div className="four-col spacer-top">
           <label className="field-group">
-            <span className="field-label">Tanggal mulai</span>
-            <input
+            <span className="field-label">Bulan</span>
+            <select
               className="field"
-              type="date"
-              value={periodStart}
-              max={periodEnd}
-              required
+              value={selectedMonth}
               onChange={(event) => {
-                setPeriodStart(event.target.value);
+                setSelectedMonth(event.target.value);
                 setPeriodError("");
               }}
-            />
-          </label>
-          <label className="field-group">
-            <span className="field-label">Tanggal selesai</span>
-            <input
-              className="field"
-              type="date"
-              value={periodEnd}
-              min={periodStart}
-              required
-              onChange={(event) => {
-                setPeriodEnd(event.target.value);
-                setPeriodError("");
-              }}
-            />
+            >
+              {availableMonths.map((ym) => {
+                const [y, m] = ym.split("-");
+                const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+                return <option key={ym} value={ym}>{months[parseInt(m) - 1]} {y}</option>;
+              })}
+            </select>
           </label>
           <div className="field-group report-button-group">
             <span className="field-label">&nbsp;</span>
@@ -3558,45 +3635,46 @@ JANGAN memberikan penjelasan tambahan, JANGAN menggunakan markdown.`;
               type="button"
               className="button button--forecast button--full"
               onClick={() => {
-                if (isForecasting) return;
-                setIsForecasting(true);
-                setForecastProgress(0);
+                if (isAiAnalysisRunning) return;
+                setIsAiAnalysisRunning(true);
+                setAiAnalysisProgress(0);
                 setAiAnalysis("");
                 setAiError("");
                 setIsAiAnalyzing(false);
                 const interval = window.setInterval(() => {
-                  setForecastProgress((prev) => {
+                  setAiAnalysisProgress((prev) => {
                     const next = prev + Math.random() * 15 + 2;
                     if (next >= 100) {
                       window.clearInterval(interval);
-                      setIsForecasting(false);
-                      setForecastGenerated(true);
+                      setIsAiAnalysisRunning(false);
+                      analyzeSalesWithAI();
                       return 100;
                     }
                     return next;
                   });
                 }, 200);
               }}
-              disabled={isForecasting}
+              disabled={isAiAnalysisRunning}
             >
-              {isForecasting
+              {isAiAnalysisRunning
                 ? "Memproses..."
-                : "Generate Forecast"}
+                : "AI Analysis"}
             </button>
-            {isForecasting ? (
+            {isAiAnalysisRunning ? (
               <div className="forecast-progress-wrapper spacer-top">
                 <div className="forecast-progress-bar">
                   <div
                     className="forecast-progress-bar__fill"
-                    style={{ width: `${forecastProgress}%` }}
+                    style={{ width: `${aiAnalysisProgress}%` }}
                   />
                 </div>
                 <div className="forecast-progress-label">
-                  Generating Forecast... {Math.round(forecastProgress)}%
+                  Menganalisis dengan AI... {Math.round(aiAnalysisProgress)}%
                 </div>
               </div>
             ) : null}
           </div>
+
         </div>
         {periodError ? (
           <article className="notice notice--error spacer-top">
@@ -3604,41 +3682,41 @@ JANGAN memberikan penjelasan tambahan, JANGAN menggunakan markdown.`;
           </article>
         ) : null}
       </section>
-      {generated ? (
+      {generated && snapshot ? (
         <>
       <section className="stat-grid">
         <article className="stat-card surface--accent">
           <div className="stat-label">Total Penjualan</div>
-          <div className="stat-value">{formatCurrency(salesTotal)}</div>
+          <div className="stat-value">{formatCurrency(snapshot.salesTotal)}</div>
         </article>
         <article className="stat-card surface">
           <div className="stat-label">Total Refund</div>
-          <div className="stat-value">{formatCurrency(refundTotal)}</div>
+          <div className="stat-value">{formatCurrency(snapshot.refundTotal)}</div>
         </article>
         <article className="stat-card surface">
           <div className="stat-label">Jumlah Transaksi</div>
-          <div className="stat-value">{sales.length}</div>
+          <div className="stat-value">{snapshot.totalTransaksi}</div>
         </article>
         <article className="stat-card surface">
           <div className="stat-label">Pergerakan Stok</div>
-          <div className="stat-value">{stockMovement}</div>
+          <div className="stat-value">{snapshot.stockMovement}</div>
         </article>
       </section>
       <section className="stat-grid stat-grid--three">
         <article className="stat-card surface">
           <div className="stat-label">Omzet Bersih</div>
-          <div className="stat-value">{formatCurrency(netRevenue)}</div>
+          <div className="stat-value">{formatCurrency(snapshot.netRevenue)}</div>
         </article>
         <article className="stat-card surface--accent">
           <div className="stat-label">Rata-rata Belanja</div>
           <div className="stat-value">
-            {formatCurrency(averageTransactionValue)}
+            {formatCurrency(snapshot.avgTransaksi)}
           </div>
         </article>
         <article className="stat-card surface">
           <div className="stat-label">Estimasi Laba Kotor</div>
           <div className="stat-value">
-            {formatCurrency(estimatedGrossProfit)}
+            {formatCurrency(snapshot.estimatedGrossProfit)}
           </div>
         </article>
       </section>
@@ -3701,8 +3779,7 @@ JANGAN memberikan penjelasan tambahan, JANGAN menggunakan markdown.`;
           </table>
         </div>
       </section>
-      {forecastGenerated ? (
-        <>
+        {isAiAnalyzing || aiAnalysis || aiError ? (
         <section className="panel surface--accent">
           <h2 className="card-title" style={{ fontSize: 28 }}>
             AI Analisis Penjualan
@@ -3734,13 +3811,13 @@ JANGAN memberikan penjelasan tambahan, JANGAN menggunakan markdown.`;
                   <thead>
                     <tr>
                       <th>Produk</th>
-                      <th>Periode Lalu</th>
-                      <th>Periode Ini</th>
+                      <th>Periode Bulan Lalu</th>
+                      <th>Periode Bulan Ini</th>
                       <th>Perubahan</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {productChanges.map((p, i) => (
+                    {(aiTableSnapshot?.productChanges ?? []).map((p, i) => (
                       <tr key={i}>
                         <td>{p.name}</td>
                         <td>{p.prevQty}</td>
@@ -3762,13 +3839,13 @@ JANGAN memberikan penjelasan tambahan, JANGAN menggunakan markdown.`;
                     </tr>
                   </thead>
                   <tbody>
-                    {topPairs.map(([pair, count], i) => (
+                    {(aiTableSnapshot?.topPairs ?? []).map(([pair, count], i) => (
                       <tr key={i}>
                         <td>{pair.split(" ||| ").join(" + ")}</td>
                         <td>{count}x</td>
                       </tr>
                     ))}
-                    {topPairs.length === 0 ? (
+                    {(aiTableSnapshot?.topPairs ?? []).length === 0 ? (
                       <tr>
                         <td colSpan={2} style={{ color: "var(--color-muted)" }}>
                           Tidak ada data pembelian bersamaan
@@ -3787,87 +3864,26 @@ JANGAN memberikan penjelasan tambahan, JANGAN menggunakan markdown.`;
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedHours.map(([hour, count], i) => (
+                    {(aiTableSnapshot?.sortedHours ?? []).map(([hour, count], i) => (
                       <tr key={`h-${i}`}>
                         <td>{String(hour).padStart(2, "0")}.00 – {String(hour).padStart(2, "0")}.59</td>
                         <td>{count}</td>
                       </tr>
                     ))}
-                    {sortedDays.map(([day, count], i) => (
+                    {(aiTableSnapshot?.sortedDays ?? []).map(([day, count], i) => (
                       <tr key={`d-${i}`}>
                         <td>{day}</td>
                         <td>{count}</td>
                       </tr>
                     ))}
-                    {sortedHours.length === 0 && sortedDays.length === 0 ? (
-                      <tr>
-                        <td colSpan={2} style={{ color: "var(--color-muted)" }}>
-                          Tidak ada data transaksi
-                        </td>
-                      </tr>
-                    ) : null}
                   </tbody>
                 </table>
               </div>
-            </div>
           </div>
-        </section>
-        </>
-      ) : null}
-      {forecastGenerated ? (
-        <section className="panel">
-          <h2 className="card-title" style={{ fontSize: 28 }}>
-            Snapshot Forecasting
-          </h2>
-          <div className="table-shell spacer-top">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Dibuat</th>
-                  <th>Produk</th>
-                  <th>Total Terjual</th>
-                  <th>Stok Saat Ini</th>
-                  <th>Minimum</th>
-                  <th>Stock Status</th>
-                  <th>Saran Restok</th>
-                </tr>
-              </thead>
-              <tbody>
-                {forecastRows.map((row) => (
-                  <tr key={row.productId}>
-                    <td>{formatShortDate(new Date().toISOString())}</td>
-                    <td>{row.productName}</td>
-                    <td>{row.quantity} item</td>
-                    <td>{row.stock} item</td>
-                    <td>{row.restockThreshold} item</td>
-                    <td>
-                      <div
-                        className={`forecast-meter forecast-meter--${row.statusTone}`}
-                      >
-                        <div className="forecast-meter__track">
-                          <span
-                            className="forecast-meter__fill"
-                            style={{ width: `${row.meterValue}%` }}
-                          />
-                        </div>
-                        <div className="forecast-meter__meta">
-                          <span>{row.status}</span>
-                          <span>{row.meterValue}%</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      {row.suggestedRestock
-                        ? `Restock ${row.suggestedRestock} item`
-                        : "Stok cukup"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
           </div>
         </section>
       ) : null}
+
       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
         <label className="field-group" style={{ width: 320 }}>
           <span className="field-label" style={{ opacity: 0 }}>AI Key</span>

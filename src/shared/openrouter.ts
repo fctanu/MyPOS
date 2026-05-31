@@ -3,9 +3,13 @@ export async function callOpenRouterStream(
   messages: { role: string; content: string }[],
   onChunk: (fullText: string) => void,
 ): Promise<string> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
+
   const response = await fetch(
     "/api/nvidia",
     {
+      signal: controller.signal,
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -21,6 +25,7 @@ export async function callOpenRouterStream(
       }),
     },
   );
+  clearTimeout(timeout);
 
   if (!response.ok) {
     let errorText = "";

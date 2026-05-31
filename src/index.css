@@ -899,9 +899,29 @@ input[type="password"]::-webkit-credentials-auto-fill-button {
     grid-template-columns: 10fr 7fr;
   }
 }
+ 
 
 @media (max-width: 900px) {
   .lookup-split {
     grid-template-columns: 1fr;
   }
 }
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 32px;
+  min-width: 400px;
+  max-width: 90vw;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
