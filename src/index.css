@@ -424,6 +424,22 @@ button {
   cursor: pointer;
 }
 
+.import-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.import-split__form {
+  display: grid;
+  gap: 16px;
+  padding: 24px;
+  background: rgba(0, 86, 210, 0.03);
+  border: 1px solid var(--color-line);
+  border-radius: 24px;
+}
+
 .import-dropzone.is-active {
   border-color: var(--color-primary);
   background: linear-gradient(

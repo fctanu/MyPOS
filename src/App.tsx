@@ -31,7 +31,7 @@ type Toast = {
 
 type Role = "owner" | "employee";
 type PaymentMethod = "cash" | "transfer";
-type ProductTab = "import" | "categories" | "stock";
+type ProductTab = "import" | "categories" | "stock" | "suppliers";
 
 type Session = {
   role: Role;
@@ -95,6 +95,7 @@ type RefundItem = {
 
 type RefundRecord = {
   id: string;
+  refundNumber: string;
   saleId: string;
   saleReceiptNumber: string;
   customerName: string;
@@ -1159,6 +1160,7 @@ function LoginPage() {
   const navigate = useNavigate();
   const [selectedRole, setSelectedRole] = useState<Role>("owner");
   const [name, setName] = useState("Pemilik");
+  const [ownerPassword, setOwnerPassword] = useState("");
 
   if (session) {
     return <Navigate to="/transactions" replace />;
@@ -1178,6 +1180,7 @@ function LoginPage() {
               className={`role-card${selectedRole === "employee" ? " is-selected" : ""}`}
               onClick={() => {
                 setSelectedRole("employee");
+                setOwnerPassword("");
                 if (!name || name === "Pemilik") {
                   setName("Karyawan");
                 }
@@ -1212,9 +1215,23 @@ function LoginPage() {
                 onChange={(event) => setName(event.target.value)}
               />
             </label>
+            {selectedRole === "owner" ? (
+              <label className="field-group">
+                <span className="field-label">Kode Owner</span>
+                <input
+                  className="field"
+                  type="password"
+                  placeholder="Masukkan kode owner"
+                  style={{ borderColor: ownerPassword && ownerPassword !== "kasihsumber" ? "#f59e0b" : undefined }}
+                  value={ownerPassword}
+                  onChange={(event) => setOwnerPassword(event.target.value)}
+                />
+              </label>
+            ) : null}
             <button
               type="button"
               className="button button--primary button--full"
+              disabled={selectedRole === "owner" && ownerPassword !== "kasihsumber"}
               onClick={() => {
                 setSession({
                   role: selectedRole,
@@ -1291,6 +1308,14 @@ function TransactionsPage({
   const [cart, setCart] = useState<CartLine[]>([]);
   const [usePoints, setUsePoints] = useState(true);
   const [ownerId, setOwnerId] = useState("");
+
+  useEffect(() => {
+    if (session.role === "owner") {
+      setOwnerId("sumberkasih");
+    } else {
+      setOwnerId("");
+    }
+  }, [session.role]);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [completedSale, setCompletedSale] = useState<Sale | null>(null);
   const [receiptMessage, setReceiptMessage] = useState(
@@ -1684,8 +1709,17 @@ function TransactionsPage({
                   <span className="field-label">Telepon</span>
                   <input
                     className="field"
+                    type="tel"
+                    inputMode="numeric"
+                    placeholder="0812-xxxx-xxxx"
+                    style={{ borderColor: newCustomerPhone && !/^\+?\d*$/.test(newCustomerPhone) ? "#f59e0b" : undefined }}
                     value={newCustomerPhone}
-                    onChange={(event) => setNewCustomerPhone(event.target.value)}
+                    onChange={(event) => {
+                      const val = event.target.value;
+                      if (/^\+?\d*$/.test(val) || val === "") {
+                        setNewCustomerPhone(val);
+                      }
+                    }}
                   />
                 </label>
                 <label className="field-group">
@@ -2130,7 +2164,9 @@ function ProductsRoute() {
       ? "products-import-page"
       : tab === "stock"
         ? "products-stock-page"
-        : "products-categories-page";
+        : tab === "suppliers"
+          ? "products-suppliers-page"
+          : "products-categories-page";
 
   return (
     <ProtectedPage title="Produk" pageClass={pageClass}>
@@ -2166,6 +2202,14 @@ function ProductsPage({
     { productName: string; quantity: number; notice: string; date: string }[]
   >([]);
   const [isEditingProducts, setIsEditingProducts] = useState(false);
+  const [selectedSupplier, setSelectedSupplier] = useState<{
+    name: string;
+    phone: string;
+  } | null>(null);
+  const [whatsappMessage, setWhatsappMessage] = useState("");
+  const [newProductName, setNewProductName] = useState("");
+  const [newProductCategoryId, setNewProductCategoryId] = useState("");
+  const [newProductRetailPrice, setNewProductRetailPrice] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   async function importProductsFile(file: File) {
@@ -2417,6 +2461,13 @@ function ProductsPage({
         >
           Stok
         </button>
+        <button
+          type="button"
+          className={`tab${tab === "suppliers" ? " is-active" : ""}`}
+          onClick={() => setTab("suppliers")}
+        >
+          Supplier
+        </button>
       </div>
 
       {tab === "import" ? (
@@ -2425,39 +2476,111 @@ function ProductsPage({
           <p className="section-subtitle">
             Upload file CSV atau Excel untuk menambahkan produk secara massal.
           </p>
-          <label
-            className={`import-dropzone spacer-top${isDragActive ? " is-active" : ""}`}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-          >
-            <input
-              ref={fileInputRef}
-              hidden
-              type="file"
-              accept=".csv,.xlsx,.xls"
-              onChange={handleImport}
-            />
-            <span className="import-dropzone__eyebrow">Drag & Drop</span>
-            <span className="import-dropzone__title">
-              Tarik file `.csv` atau `.xlsx` ke sini
-            </span>
-            <span className="import-dropzone__copy">
-              Atau klik area ini untuk pilih file dari komputer. Template utama:
-              `Name`, `Kriteria`, `Net Price`, `Grosir Price`, `Eceran Price`.
-            </span>
-            <span className="button button--primary">Choose File</span>
-          </label>
-          <div className="spacer-top cluster">
-            <span className="muted-text">
-              {importMessage || "Belum ada file dipilih."}
-            </span>
+          <div className="import-split spacer-top">
+            <div>
+              <label
+                className={`import-dropzone${isDragActive ? " is-active" : ""}`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
+                <input
+                  ref={fileInputRef}
+                  hidden
+                  type="file"
+                  accept=".csv,.xlsx,.xls"
+                  onChange={handleImport}
+                />
+                <span className="import-dropzone__eyebrow">Upload Banyak Sekaligus</span>
+                <span className="import-dropzone__title">
+                  Tarik file `.csv` atau `.xlsx` ke sini
+                </span>
+                <span className="import-dropzone__copy">
+                  Atau klik area ini untuk pilih file dari komputer. Template utama:
+                  `Name`, `Kriteria`, `Net Price`, `Grosir Price`, `Eceran Price`.
+                </span>
+                <span className="button button--primary">Choose File</span>
+              </label>
+              <div className="spacer-top cluster">
+                <span className="muted-text">
+                  {importMessage || "Belum ada file dipilih."}
+                </span>
+              </div>
+              <p className="helper-copy spacer-top">
+                Format utama: `Name`, `Kriteria`, `Eceran Price`. Kolom `Net Price`
+                dan `Grosir Price` juga didukung. Format lama `id`, `name`,
+                `category`, `harga` tetap bisa dipakai.
+              </p>
+            </div>
+            <div className="import-split__form">
+              <h3 className="card-title" style={{ fontSize: 20, margin: 0 }}>Input Produk Manual</h3>
+              <label className="field-group">
+                <span className="field-label">Nama Produk</span>
+                <input
+                  className="field"
+                  type="text"
+                  placeholder="Masukkan nama produk"
+                  value={newProductName}
+                  onChange={(e) => setNewProductName(e.target.value)}
+                />
+              </label>
+              <label className="field-group">
+                <span className="field-label">Kategori</span>
+                <select
+                  className="field"
+                  value={newProductCategoryId}
+                  onChange={(e) => setNewProductCategoryId(e.target.value)}
+                >
+                  <option value="">Pilih kategori</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="field-group">
+                <span className="field-label">Harga Retail</span>
+                <input
+                  className="field"
+                  type="number"
+                  min="0"
+                  step="1"
+                  placeholder="Masukkan harga"
+                  value={newProductRetailPrice}
+                  onChange={(e) => setNewProductRetailPrice(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "." || e.key === "," || e.key === "e" || e.key === "E") {
+                      e.preventDefault();
+                    }
+                  }}
+                />
+              </label>
+              <button
+                type="button"
+                className="button button--primary"
+                disabled={!newProductName.trim() || !newProductCategoryId || !newProductRetailPrice}
+                onClick={() => {
+                  setProducts((current) => [
+                    {
+                      id: makeId("prd"),
+                      sku: slugify(newProductName),
+                      name: newProductName.trim(),
+                      categoryId: newProductCategoryId,
+                      retailPrice: Math.round(Number(newProductRetailPrice)),
+                      stock: DEFAULT_PRODUCT_STOCK,
+                      lowStockThreshold: getRestockThreshold(DEFAULT_PRODUCT_STOCK),
+                    },
+                    ...current,
+                  ]);
+                  setNewProductName("");
+                  setNewProductCategoryId("");
+                  setNewProductRetailPrice("");
+                  setImportMessage(`Produk baru berhasil ditambahkan.`);
+                }}
+              >
+                Tambah Produk
+              </button>
+            </div>
           </div>
-          <p className="helper-copy spacer-top">
-            Format utama: `Name`, `Kriteria`, `Eceran Price`. Kolom `Net Price`
-            dan `Grosir Price` juga didukung. Format lama `id`, `name`,
-            `category`, `harga` tetap bisa dipakai.
-          </p>
           <div className="product-list-heading spacer-top">
             <h2 className="card-title" style={{ fontSize: 28 }}>
               Daftar Produk ({products.length})
@@ -2873,6 +2996,108 @@ function ProductsPage({
           </section>
         </section>
       ) : null}
+
+      {tab === "suppliers" ? (
+        <section className="panel">
+          <h1 className="page-heading">Daftar Supplier</h1>
+          <p className="section-subtitle">Kelola data supplier dan hubungi via WhatsApp.</p>
+          <div className="table-shell spacer-top">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Nama Supplier</th>
+                  <th>Alamat</th>
+                  <th>Nomor Telepon</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  { name: "CV Sumber Makmur", address: "Jl. Raya Industri No. 45, Jakarta", phone: "628128001234" },
+                  { name: "PT Indah Logistik", address: "Kompleks Pergudangan Blok A3, Surabaya", phone: "628138009876" },
+                  { name: "UD Berkah Jaya", address: "Jl. Diponegoro No. 78, Bandung", phone: "628218005678" },
+                  { name: "Toko Sinarmas", address: "Pasar Induk Kramat Jati, Jakarta", phone: "628118004321" },
+                  { name: "CV Agro Niaga", address: "Jl. Raya Semarang No. 120, Semarang", phone: "628568007654" },
+                ].map((supplier) => (
+                  <tr key={supplier.phone}>
+                    <td><strong>{supplier.name}</strong></td>
+                    <td>{supplier.address}</td>
+                    <td>{supplier.phone}</td>
+                    <td className="text-right">
+                      <button
+                        type="button"
+                        className="button"
+                        style={{
+                          background: "#25D366",
+                          color: "#fff",
+                          border: "none",
+                        }}
+                        onClick={() => {
+                          setSelectedSupplier(supplier);
+                          setWhatsappMessage(
+                            `Halo ${supplier.name}, aku mau Restock untuk barang :\nNama Produk :\nQuantitas :\n\napakah bisa?`,
+                          );
+                        }}
+                      >
+                        WhatsApp
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
+
+      {selectedSupplier ? (
+        <div
+          className="modal-overlay"
+          onClick={() => setSelectedSupplier(null)}
+        >
+          <div
+            className="modal-card"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="card-title" style={{ fontSize: 24 }}>
+              Kirim Pesan ke {selectedSupplier.name}
+            </h2>
+            <div className="form-stack spacer-top">
+              <label className="field-group">
+                <span className="field-label">Pesan WhatsApp</span>
+                <textarea
+                  className="textarea-field"
+                  rows={5}
+                  value={whatsappMessage}
+                  onChange={(e) => setWhatsappMessage(e.target.value)}
+                />
+              </label>
+              <div className="button-row">
+                <a
+                  href={`https://wa.me/${selectedSupplier.phone}?text=${encodeURIComponent(whatsappMessage)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="button"
+                  style={{
+                    background: "#25D366",
+                    color: "#fff",
+                    border: "none",
+                  }}
+                >
+                  Kirim WhatsApp
+                </a>
+                <button
+                  type="button"
+                  className="button button--ghost"
+                  onClick={() => setSelectedSupplier(null)}
+                >
+                  Batal
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -2901,6 +3126,7 @@ function RefundsPage({
   setSelectedSaleId: (value: string | null) => void;
 }) {
   const {
+    session,
     sales,
     setSales,
     products,
@@ -2913,6 +3139,14 @@ function RefundsPage({
   const [reason, setReason] = useState("Keluhan pelanggan");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [ownerId, setOwnerId] = useState("");
+
+  useEffect(() => {
+    if (session.role === "owner") {
+      setOwnerId("sumberkasih");
+    } else {
+      setOwnerId("");
+    }
+  }, [session.role]);
   const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null);
 
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -2991,8 +3225,10 @@ function RefundsPage({
         subtotal: item.unitPrice * qty,
       };
     });
+    const nextNumber = refunds.length + 1;
     const newRefund: RefundRecord = {
       id: makeId("refund"),
+      refundNumber: `RFND-${String(nextNumber).padStart(4, "0")}`,
       saleId: selectedSale.id,
       saleReceiptNumber: selectedSale.receiptNumber,
       customerName: selectedSale.customerName,
@@ -3258,6 +3494,7 @@ function RefundsPage({
             <table className="data-table">
               <thead>
                 <tr>
+                  <th>ID Refund</th>
                   <th>Struk</th>
                   <th>Pelanggan</th>
                   <th>Item</th>
@@ -3269,6 +3506,7 @@ function RefundsPage({
               <tbody>
                 {refunds.map((refund) => (
                   <tr key={refund.id}>
+                    <td className="mono">{refund.refundNumber}</td>
                     <td>{refund.saleReceiptNumber}</td>
                     <td>{refund.customerName}</td>
                     <td>
