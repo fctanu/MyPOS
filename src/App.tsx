@@ -2146,7 +2146,7 @@ function ProductsPage({
   tab: ProductTab;
   setTab: (tab: ProductTab) => void;
 }) {
-  const { categories, setCategories, products, setProducts, sales } = useAppModel();
+  const { session, categories, setCategories, products, setProducts, sales } = useAppModel();
   const [importMessage, setImportMessage] = useState("");
   const [isDragActive, setIsDragActive] = useState(false);
   const [categoryName, setCategoryName] = useState("SNACK");
@@ -2769,12 +2769,13 @@ function ProductsPage({
                       {row.suggestedRestock ? (
                         <button
                           type="button"
-                          className="button button--ghost"
+                          className={`button button--ghost${session.role !== "owner" ? " button--disabled-orange" : ""}`}
                           onClick={() => {
                             setAdjustQuantity(String(row.suggestedRestock));
                             setAdjustNotice("Restok mingguan");
                             setAdjustingProductId(row.productId);
                           }}
+                          disabled={session.role !== "owner"}
                         >
                           Restock {row.suggestedRestock} item
                         </button>
