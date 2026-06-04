@@ -1307,7 +1307,9 @@ function TransactionsPage({
   const [activeCategoryId, setActiveCategoryId] = useState<string>("all");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [usePoints, setUsePoints] = useState(true);
-  const ownerId = "sumberkasih";
+  const [showOwnerDialog, setShowOwnerDialog] = useState(false);
+  const [ownerPasswordInput, setOwnerPasswordInput] = useState("");
+  const [ownerAction, setOwnerAction] = useState<(() => void) | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [completedSale, setCompletedSale] = useState<Sale | null>(null);
   const [receiptMessage, setReceiptMessage] = useState(
@@ -1315,6 +1317,24 @@ function TransactionsPage({
   );
   const [printStatus, setPrintStatus] = useState("");
   const receiptReturnTimerRef = useRef<number | null>(null);
+
+  function requireOwner(action: () => void) {
+    if (!session || session.role === "owner") {
+      action();
+    } else {
+      setOwnerAction(() => action);
+      setOwnerPasswordInput("");
+      setShowOwnerDialog(true);
+    }
+  }
+  function confirmOwner() {
+    if (ownerPasswordInput === "kasihsumber") {
+      ownerAction?.();
+      setShowOwnerDialog(false);
+      setOwnerAction(null);
+      setOwnerPasswordInput("");
+    }
+  }
 
   const selectedCustomer =
     customers.find((customer) => customer.id === selectedCustomerId) ?? null;
@@ -1972,12 +1992,6 @@ function TransactionsPage({
                 </p>
               )}
             </div>
-            <div className="stats-pair stats-pair--single">
-              <article className="metric-tile metric-tile--dark">
-                <div className="metric-kicker">Keranjang</div>
-                <div className="metric-number">{cartCount}</div>
-              </article>
-            </div>
           </div>
           <div className="chip-row spacer-top">
             <button
@@ -2055,9 +2069,8 @@ function TransactionsPage({
           </div>
           <button
             type="button"
-            className={`button button--ghost${ownerId !== "sumberkasih" ? " button--disabled-orange" : ""}`}
-            onClick={clearCart}
-            disabled={ownerId !== "sumberkasih"}
+            className="button button--orange"
+            onClick={() => requireOwner(clearCart)}
           >
             Kosongkan
           </button>
@@ -2073,9 +2086,8 @@ function TransactionsPage({
                   </div>
                   <button
                     type="button"
-                    className={`button button--ghost${ownerId !== "sumberkasih" ? " button--disabled-orange" : ""}`}
-                    onClick={() => updateQuantity(item.product.id, 0)}
-                    disabled={ownerId !== "sumberkasih"}
+                    className="button button--orange"
+                    onClick={() => requireOwner(() => updateQuantity(item.product.id, 0))}
                   >
                     Hapus
                   </button>
@@ -2085,11 +2097,10 @@ function TransactionsPage({
                   <div className="qty-stepper">
                     <button
                       type="button"
-                      className={`qty-stepper__button${ownerId !== "sumberkasih" ? " button--disabled-orange" : ""}`}
+                      className="qty-stepper__button"
                       onClick={() =>
-                        updateQuantity(item.product.id, item.quantity - 1)
+                        requireOwner(() => updateQuantity(item.product.id, item.quantity - 1))
                       }
-                      disabled={ownerId !== "sumberkasih"}
                     >
                       -
                     </button>
@@ -2137,6 +2148,37 @@ function TransactionsPage({
           </div>
         </div>
       </aside>
+      {showOwnerDialog ? (
+        <div className="modal-overlay" onClick={() => setShowOwnerDialog(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <h2 className="card-title" style={{ fontSize: 24 }}>
+              Konfirmasi Owner
+            </h2>
+            <p className="section-subtitle">
+              Masukkan kode owner untuk melanjutkan.
+            </p>
+            <label className="field-group spacer-top">
+              <span className="field-label">Kode Owner</span>
+              <input
+                className="field"
+                type="password"
+                placeholder="Kode owner"
+                value={ownerPasswordInput}
+                onChange={(e) => setOwnerPasswordInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") confirmOwner(); }}
+              />
+            </label>
+            <div className="button-row spacer-top">
+              <button className="button button--primary" onClick={confirmOwner}>
+                Konfirmasi
+              </button>
+              <button className="button button--ghost" onClick={() => setShowOwnerDialog(false)}>
+                Batal
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -3055,8 +3097,9 @@ function ProductsPage({
                   <div className="button-row">
                     <button
                       type="button"
-                      className="button button--primary"
+                      className={`button button--primary${session.role !== "owner" ? " button--disabled-orange" : ""}`}
                       onClick={applyStockAdjustment}
+                      disabled={session.role !== "owner"}
                     >
                       Simpan Stok
                     </button>
@@ -3376,8 +3419,28 @@ function RefundsPage({
   const [search, setSearch] = useState("");
   const [reason, setReason] = useState("Keluhan pelanggan");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
-  const ownerId = "sumberkasih";
+  const [showOwnerDialog, setShowOwnerDialog] = useState(false);
+  const [ownerPasswordInput, setOwnerPasswordInput] = useState("");
+  const [ownerAction, setOwnerAction] = useState<(() => void) | null>(null);
   const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null);
+
+  function requireOwner(action: () => void) {
+    if (!session || session.role === "owner") {
+      action();
+    } else {
+      setOwnerAction(() => action);
+      setOwnerPasswordInput("");
+      setShowOwnerDialog(true);
+    }
+  }
+  function confirmOwner() {
+    if (ownerPasswordInput === "kasihsumber") {
+      ownerAction?.();
+      setShowOwnerDialog(false);
+      setOwnerAction(null);
+      setOwnerPasswordInput("");
+    }
+  }
 
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const months = [...new Set(sales.map((s) => s.createdAt.slice(0, 7)))].sort();
@@ -3686,7 +3749,7 @@ function RefundsPage({
               <button
                 type="button"
                 className={`button button--primary${!selectedSaleRefundable ? " button--disabled-orange" : ""}`}
-                onClick={processRefund}
+                onClick={() => requireOwner(processRefund)}
                 disabled={!selectedSaleRefundable}
               >
                 Proses Refund
@@ -3748,6 +3811,38 @@ function RefundsPage({
           </div>
         )}
       </section>
+
+      {showOwnerDialog ? (
+        <div className="modal-overlay" onClick={() => setShowOwnerDialog(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <h2 className="card-title" style={{ fontSize: 24 }}>
+              Konfirmasi Owner
+            </h2>
+            <p className="section-subtitle">
+              Masukkan kode owner untuk melanjutkan.
+            </p>
+            <label className="field-group spacer-top">
+              <span className="field-label">Kode Owner</span>
+              <input
+                className="field"
+                type="password"
+                placeholder="Kode owner"
+                value={ownerPasswordInput}
+                onChange={(e) => setOwnerPasswordInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") confirmOwner(); }}
+              />
+            </label>
+            <div className="button-row spacer-top">
+              <button className="button button--primary" onClick={confirmOwner}>
+                Konfirmasi
+              </button>
+              <button className="button button--ghost" onClick={() => setShowOwnerDialog(false)}>
+                Batal
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

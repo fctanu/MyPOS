@@ -168,7 +168,7 @@ button {
 
 .transactions-order-expanded-page .hero-grid,
 .transactions-order-collapsed-page .hero-grid {
-  grid-template-columns: minmax(0, 1fr) 180px;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .stats-pair--single {
@@ -688,6 +688,14 @@ input[type="password"]::-webkit-credentials-auto-fill-button {
   border-color: #d97706 !important;
   cursor: not-allowed !important;
   transform: none !important;
+}
+
+.button--orange {
+  color: #d97706 !important;
+  border-color: #d97706 !important;
+}
+.button--orange:hover {
+  background: rgba(217, 119, 6, 0.1) !important;
 }
 
 .toast-container {
