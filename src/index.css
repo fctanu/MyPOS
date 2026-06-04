@@ -941,3 +941,32 @@ input[type="password"]::-webkit-credentials-auto-fill-button {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
 }
 
+.role-card {
+  background: var(--color-canvas);
+  border-color: rgba(71, 85, 105, 0.24);
+}
+
+.data-table .button--ghost {
+  background: var(--color-secondary-soft);
+  border: 1px solid rgba(71, 85, 105, 0.18);
+}
+
+.data-table .button--ghost:hover {
+  background: var(--color-secondary);
+  color: var(--color-white);
+}
+
+.modal-card .button--ghost {
+  background: rgba(71, 85, 105, 0.1);
+  border: 1px solid rgba(71, 85, 105, 0.18);
+}
+
+.modal-card .button--ghost:hover {
+  background: rgba(71, 85, 105, 0.18);
+}
+
+.qty-stepper__button {
+  font-size: 20px;
+  font-weight: 700;
+}
+

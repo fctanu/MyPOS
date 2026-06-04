@@ -1307,15 +1307,7 @@ function TransactionsPage({
   const [activeCategoryId, setActiveCategoryId] = useState<string>("all");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [usePoints, setUsePoints] = useState(true);
-  const [ownerId, setOwnerId] = useState("");
-
-  useEffect(() => {
-    if (session.role === "owner") {
-      setOwnerId("sumberkasih");
-    } else {
-      setOwnerId("");
-    }
-  }, [session.role]);
+  const ownerId = "sumberkasih";
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [completedSale, setCompletedSale] = useState<Sale | null>(null);
   const [receiptMessage, setReceiptMessage] = useState(
@@ -2060,14 +2052,6 @@ function TransactionsPage({
             <h2 className="card-title" style={{ fontSize: 30 }}>
               Pesanan
             </h2>
-            <input
-              className="field owner-id-input"
-              type="password"
-              placeholder="Owner ID"
-              value={ownerId}
-              onChange={(event) => setOwnerId(event.target.value)}
-              style={{ borderColor: ownerId && ownerId !== "sumberkasih" ? "#dc2626" : undefined }}
-            />
           </div>
           <button
             type="button"
@@ -2158,7 +2142,7 @@ function TransactionsPage({
 }
 
 function ProductsRoute() {
-  const [tab, setTab] = useState<ProductTab>("categories");
+  const [tab, setTab] = useState<ProductTab>("import");
   const pageClass =
     tab === "import"
       ? "products-import-page"
@@ -2182,9 +2166,12 @@ function ProductsPage({
   tab: ProductTab;
   setTab: (tab: ProductTab) => void;
 }) {
-  const { session, categories, setCategories, products, setProducts, sales } = useAppModel();
-  const [importMessage, setImportMessage] = useState("");
+  const { session, categories, setCategories, products, setProducts, sales, addToast } = useAppModel();
   const [isDragActive, setIsDragActive] = useState(false);
+  const [importPreview, setImportPreview] = useState<{
+    rows: ImportRow[];
+    fileName: string;
+  } | null>(null);
   const [categoryName, setCategoryName] = useState("SNACK");
   const [categoryDescription, setCategoryDescription] = useState(
     "Biskuit, keripik, wafer, dan pelengkap kasir cepat.",
@@ -2202,71 +2189,42 @@ function ProductsPage({
     { productName: string; quantity: number; notice: string; date: string }[]
   >([]);
   const [isEditingProducts, setIsEditingProducts] = useState(false);
+  const [suppliers, setSuppliers] = useState([
+    { name: "CV Sumber Makmur", address: "Jl. Raya Industri No. 45, Jakarta", phone: "628128001234" },
+    { name: "PT Indah Logistik", address: "Kompleks Pergudangan Blok A3, Surabaya", phone: "628138009876" },
+    { name: "UD Berkah Jaya", address: "Jl. Diponegoro No. 78, Bandung", phone: "628218005678" },
+    { name: "Toko Sinarmas", address: "Pasar Induk Kramat Jati, Jakarta", phone: "628118004321" },
+    { name: "CV Agro Niaga", address: "Jl. Raya Semarang No. 120, Semarang", phone: "628568007654" },
+  ]);
+  const [showAddSupplier, setShowAddSupplier] = useState(false);
+  const [newSupplierName, setNewSupplierName] = useState("");
+  const [newSupplierAddress, setNewSupplierAddress] = useState("");
+  const [newSupplierPhone, setNewSupplierPhone] = useState("");
   const [selectedSupplier, setSelectedSupplier] = useState<{
     name: string;
+    address: string;
     phone: string;
   } | null>(null);
   const [whatsappMessage, setWhatsappMessage] = useState("");
   const [newProductName, setNewProductName] = useState("");
   const [newProductCategoryId, setNewProductCategoryId] = useState("");
   const [newProductRetailPrice, setNewProductRetailPrice] = useState("");
+  const [showDeleteAll, setShowDeleteAll] = useState(false);
+  const [deleteAllConfirmText, setDeleteAllConfirmText] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  async function importProductsFile(file: File) {
+  async function showImportPreview(file: File) {
     try {
       const rows = await parseImportFile(file);
       if (!rows.length) {
-        setImportMessage("File tidak berisi data produk baru.");
+        addToast("File tidak berisi data produk baru.", "error");
         return;
       }
-
-      const existingCategories = new Map<string, string>(
-        categories.map((category) => [
-          category.name.toLowerCase(),
-          category.id,
-        ]),
-      );
-      const newCategories: Category[] = [];
-      const additions: Product[] = rows.map((row, index) => {
-        const categoryKey = row.category.toLowerCase();
-        let categoryId: string | undefined =
-          existingCategories.get(categoryKey);
-        if (!categoryId) {
-          categoryId = makeId("cat");
-          existingCategories.set(categoryKey, categoryId);
-          newCategories.push({
-            id: categoryId,
-            name: row.category.toUpperCase(),
-            description: file.name.toLowerCase().endsWith(".csv")
-              ? "Hasil import CSV."
-              : "Hasil import spreadsheet.",
-          });
-        }
-        return {
-          id: row.id || makeId(`prd${index}`),
-          sku: slugify(row.name),
-          name: row.name,
-          categoryId,
-          netPrice: row.netPrice ? Math.round(row.netPrice) : undefined,
-          wholesalePrice: row.wholesalePrice
-            ? Math.round(row.wholesalePrice)
-            : undefined,
-          retailPrice: Math.round(row.retailPrice),
-          stock: DEFAULT_PRODUCT_STOCK,
-          lowStockThreshold: getRestockThreshold(DEFAULT_PRODUCT_STOCK),
-        };
-      });
-
-      if (newCategories.length) {
-        setCategories((current) => [...current, ...newCategories]);
-      }
-      setProducts((current) => [...additions, ...current]);
-      setImportMessage(
-        `${additions.length} produk berhasil ditambahkan dari ${file.name}.`,
-      );
+      setImportPreview({ rows, fileName: file.name });
     } catch (error) {
-      setImportMessage(
+      addToast(
         error instanceof Error ? error.message : "Import file gagal diproses.",
+        "error",
       );
     } finally {
       if (fileInputRef.current) {
@@ -2275,10 +2233,77 @@ function ProductsPage({
     }
   }
 
+  function confirmImport() {
+    if (!importPreview) return;
+    const { rows, fileName } = importPreview;
+    try {
+      const existingCategories = new Map<string, string>(
+        categories.map((category) => [
+          category.name.toLowerCase(),
+          category.id,
+        ]),
+      );
+      const existingNames = new Set(products.map((p) => p.name.toLowerCase()));
+      const seenNames = new Set<string>();
+      const newCategories: Category[] = [];
+      const additions: Product[] = rows
+        .filter((row) => {
+          const key = row.name.toLowerCase();
+          if (existingNames.has(key) || seenNames.has(key)) return false;
+          seenNames.add(key);
+          return true;
+        })
+        .map((row, index) => {
+          const categoryKey = row.category.toLowerCase();
+          let categoryId: string | undefined =
+            existingCategories.get(categoryKey);
+          if (!categoryId) {
+            categoryId = makeId("cat");
+            existingCategories.set(categoryKey, categoryId);
+            newCategories.push({
+              id: categoryId,
+              name: row.category.toUpperCase(),
+              description: fileName.toLowerCase().endsWith(".csv")
+                ? "Hasil import CSV."
+                : "Hasil import spreadsheet.",
+            });
+          }
+          return {
+            id: row.id || makeId(`prd${index}`),
+            sku: slugify(row.name),
+            name: row.name,
+            categoryId,
+            netPrice: row.netPrice ? Math.round(row.netPrice) : undefined,
+            wholesalePrice: row.wholesalePrice
+              ? Math.round(row.wholesalePrice)
+              : undefined,
+            retailPrice: Math.round(row.retailPrice),
+            stock: DEFAULT_PRODUCT_STOCK,
+            lowStockThreshold: getRestockThreshold(DEFAULT_PRODUCT_STOCK),
+          };
+        });
+      if (newCategories.length) {
+        setCategories((current) => [...current, ...newCategories]);
+      }
+      setProducts((current) => [...additions, ...current]);
+      const skipped = rows.length - additions.length;
+      const msg = additions.length
+        ? `${additions.length} produk berhasil ditambahkan${skipped ? `, ${skipped} duplikat dilewati` : ""} dari ${fileName}.`
+        : "Semua produk sudah ada — tidak ada yang ditambahkan.";
+      addToast(msg);
+      setImportPreview(null);
+    } catch (error) {
+      addToast(
+        error instanceof Error ? error.message : "Import gagal diproses.",
+        "error",
+      );
+    }
+  }
+
   function handleImport(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
-    void importProductsFile(file);
+    void showImportPreview(file);
   }
 
   function handleDragOver(event: DragEvent<HTMLLabelElement>) {
@@ -2298,7 +2323,7 @@ function ProductsPage({
     if (!file) {
       return;
     }
-    void importProductsFile(file);
+    void showImportPreview(file);
   }
 
   function saveCategory() {
@@ -2335,6 +2360,29 @@ function ProductsPage({
     setCategoryName(category.name);
     setCategoryDescription(category.description);
     setTab("categories");
+  }
+
+  function addSupplier() {
+    if (!newSupplierName.trim() || !newSupplierPhone.trim()) return;
+    setSuppliers((current) => [
+      ...current,
+      {
+        name: newSupplierName.trim().toUpperCase(),
+        address: newSupplierAddress.trim(),
+        phone: newSupplierPhone.trim(),
+      },
+    ]);
+    setShowAddSupplier(false);
+    setNewSupplierName("");
+    setNewSupplierAddress("");
+    setNewSupplierPhone("");
+  }
+
+  function deleteAllProducts() {
+    if (deleteAllConfirmText !== "Hapus Produk") return;
+    setProducts([]);
+    setShowDeleteAll(false);
+    setDeleteAllConfirmText("");
   }
 
   function applyStockAdjustment() {
@@ -2461,13 +2509,15 @@ function ProductsPage({
         >
           Stok
         </button>
-        <button
-          type="button"
-          className={`tab${tab === "suppliers" ? " is-active" : ""}`}
-          onClick={() => setTab("suppliers")}
-        >
-          Supplier
-        </button>
+        {session.role === "owner" ? (
+          <button
+            type="button"
+            className={`tab${tab === "suppliers" ? " is-active" : ""}`}
+            onClick={() => setTab("suppliers")}
+          >
+            Supplier
+          </button>
+        ) : null}
       </div>
 
       {tab === "import" ? (
@@ -2501,11 +2551,6 @@ function ProductsPage({
                 </span>
                 <span className="button button--primary">Choose File</span>
               </label>
-              <div className="spacer-top cluster">
-                <span className="muted-text">
-                  {importMessage || "Belum ada file dipilih."}
-                </span>
-              </div>
               <p className="helper-copy spacer-top">
                 Format utama: `Name`, `Kriteria`, `Eceran Price`. Kolom `Net Price`
                 dan `Grosir Price` juga didukung. Format lama `id`, `name`,
@@ -2574,7 +2619,7 @@ function ProductsPage({
                   setNewProductName("");
                   setNewProductCategoryId("");
                   setNewProductRetailPrice("");
-                  setImportMessage(`Produk baru berhasil ditambahkan.`);
+                  addToast("Produk baru berhasil ditambahkan.");
                 }}
               >
                 Tambah Produk
@@ -2585,15 +2630,30 @@ function ProductsPage({
             <h2 className="card-title" style={{ fontSize: 28 }}>
               Daftar Produk ({products.length})
             </h2>
-            <button
-              type="button"
-              className={`button ${
-                isEditingProducts ? "button--primary" : "button--secondary"
-              }`}
-              onClick={() => setIsEditingProducts((current) => !current)}
-            >
-              {isEditingProducts ? "Selesai" : "Edit"}
-            </button>
+            <div className="button-row">
+              <button
+                type="button"
+                className={`button ${
+                  isEditingProducts ? "button--primary" : "button--secondary"
+                }`}
+                onClick={() => setIsEditingProducts((current) => !current)}
+              >
+                {isEditingProducts ? "Selesai" : "Edit"}
+              </button>
+              {session.role === "owner" ? (
+                <button
+                  type="button"
+                  className="button"
+                  style={{ background: "#dc2626", color: "#fff", border: "none" }}
+                  onClick={() => {
+                    setShowDeleteAll(true);
+                    setDeleteAllConfirmText("");
+                  }}
+                >
+                  Delete All Produk
+              </button>
+            ) : null}
+          </div>
           </div>
           <div className="table-shell spacer-top">
             <table className="data-table">
@@ -2606,6 +2666,7 @@ function ProductsPage({
                   <th>Grosir Price</th>
                   <th>Harga Retail</th>
                   <th>Stok</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -2729,12 +2790,69 @@ function ProductsPage({
                         product.stock
                       )}
                     </td>
+                    <td>
+                      {isEditingProducts && session.role === "owner" ? (
+                        <button
+                          type="button"
+                          className="button button--ghost"
+                          style={{ color: "#dc2626" }}
+                          onClick={() =>
+                            setProducts((current) =>
+                              current.filter((p) => p.id !== product.id),
+                            )
+                          }
+                        >
+                          Hapus
+                        </button>
+                      ) : null}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         </section>
+      ) : null}
+
+      {showDeleteAll ? (
+        <div className="modal-overlay" onClick={() => setShowDeleteAll(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <h2 className="card-title" style={{ fontSize: 24 }}>
+              Hapus Semua Produk
+            </h2>
+            <p className="card-copy spacer-top">
+              Ketik <strong>"Hapus Produk"</strong> untuk mengonfirmasi penghapusan <strong>semua produk</strong>. Tindakan ini tidak dapat dibatalkan.
+            </p>
+            <div className="form-stack spacer-top">
+              <label className="field-group">
+                <span className="field-label">Ketik "Hapus Produk"</span>
+                <input
+                  className="field"
+                  value={deleteAllConfirmText}
+                  onChange={(event) => setDeleteAllConfirmText(event.target.value)}
+                />
+              </label>
+              <div className="button-row">
+                <button
+                  type="button"
+                  className="button button--primary"
+                  style={{ background: "#dc2626" }}
+                  disabled={deleteAllConfirmText !== "Hapus Produk"}
+                  onClick={deleteAllProducts}
+                >
+                  Hapus Semua Produk
+                </button>
+                <button
+                  type="button"
+                  className="button button--ghost"
+                  onClick={() => setShowDeleteAll(false)}
+                >
+                  Batal
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       ) : null}
 
       {tab === "categories" ? (
@@ -2997,10 +3115,26 @@ function ProductsPage({
         </section>
       ) : null}
 
-      {tab === "suppliers" ? (
+      {tab === "suppliers" && session.role === "owner" ? (
         <section className="panel">
-          <h1 className="page-heading">Daftar Supplier</h1>
-          <p className="section-subtitle">Kelola data supplier dan hubungi via WhatsApp.</p>
+          <div className="kpi-inline">
+            <div>
+              <h1 className="page-heading">Daftar Supplier</h1>
+              <p className="section-subtitle">Kelola data supplier dan hubungi via WhatsApp.</p>
+            </div>
+            <button
+              type="button"
+              className="button button--primary"
+              onClick={() => {
+                setShowAddSupplier(true);
+                setNewSupplierName("");
+                setNewSupplierAddress("");
+                setNewSupplierPhone("");
+              }}
+            >
+              Tambah Supplier
+            </button>
+          </div>
           <div className="table-shell spacer-top">
             <table className="data-table">
               <thead>
@@ -3012,13 +3146,7 @@ function ProductsPage({
                 </tr>
               </thead>
               <tbody>
-                {[
-                  { name: "CV Sumber Makmur", address: "Jl. Raya Industri No. 45, Jakarta", phone: "628128001234" },
-                  { name: "PT Indah Logistik", address: "Kompleks Pergudangan Blok A3, Surabaya", phone: "628138009876" },
-                  { name: "UD Berkah Jaya", address: "Jl. Diponegoro No. 78, Bandung", phone: "628218005678" },
-                  { name: "Toko Sinarmas", address: "Pasar Induk Kramat Jati, Jakarta", phone: "628118004321" },
-                  { name: "CV Agro Niaga", address: "Jl. Raya Semarang No. 120, Semarang", phone: "628568007654" },
-                ].map((supplier) => (
+                {suppliers.map((supplier) => (
                   <tr key={supplier.phone}>
                     <td><strong>{supplier.name}</strong></td>
                     <td>{supplier.address}</td>
@@ -3048,6 +3176,61 @@ function ProductsPage({
             </table>
           </div>
         </section>
+      ) : null}
+
+      {showAddSupplier ? (
+        <div className="modal-overlay" onClick={() => setShowAddSupplier(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <h2 className="card-title" style={{ fontSize: 24 }}>
+              Tambah Supplier Baru
+            </h2>
+            <div className="form-stack spacer-top">
+              <label className="field-group">
+                <span className="field-label">Nama Supplier</span>
+                <input
+                  className="field"
+                  value={newSupplierName}
+                  onChange={(event) => setNewSupplierName(event.target.value)}
+                />
+              </label>
+              <label className="field-group">
+                <span className="field-label">Alamat</span>
+                <textarea
+                  className="textarea-field"
+                  value={newSupplierAddress}
+                  onChange={(event) => setNewSupplierAddress(event.target.value)}
+                />
+              </label>
+              <label className="field-group">
+                <span className="field-label">Nomor Telepon</span>
+                <input
+                  className="field"
+                  type="tel"
+                  placeholder="62812-xxxx-xxxx"
+                  value={newSupplierPhone}
+                  onChange={(event) => setNewSupplierPhone(event.target.value)}
+                />
+              </label>
+              <div className="button-row">
+                <button
+                  type="button"
+                  className="button button--primary"
+                  disabled={!newSupplierName.trim() || !newSupplierPhone.trim()}
+                  onClick={addSupplier}
+                >
+                  Simpan
+                </button>
+                <button
+                  type="button"
+                  className="button button--ghost"
+                  onClick={() => setShowAddSupplier(false)}
+                >
+                  Batal
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       ) : null}
 
       {selectedSupplier ? (
@@ -3098,6 +3281,61 @@ function ProductsPage({
           </div>
         </div>
       ) : null}
+
+      {importPreview ? (
+        <div className="modal-overlay" onClick={() => setImportPreview(null)}>
+          <div className="modal-card" style={{ minWidth: 700, maxWidth: "95vw", maxHeight: "85vh", overflowY: "auto", padding: 28 }} onClick={(e) => e.stopPropagation()}>
+            <h2 className="card-title" style={{ fontSize: 22, marginBottom: 4 }}>
+              Preview Import — {importPreview.fileName}
+            </h2>
+            <p className="section-subtitle" style={{ marginTop: 0 }}>
+              {importPreview.rows.length} produk akan ditambahkan.
+            </p>
+            <div className="table-shell spacer-top" style={{ maxHeight: "55vh", overflowY: "auto" }}>
+              <table className="data-table" style={{ fontSize: 12 }}>
+                <thead>
+                  <tr>
+                    <th style={{ width: 40 }}>No</th>
+                    <th>Nama</th>
+                    <th>Kategori</th>
+                    <th>Net Price</th>
+                    <th>Grosir Price</th>
+                    <th>Harga Retail</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {importPreview.rows.map((row, i) => (
+                    <tr key={i}>
+                      <td>{i + 1}</td>
+                      <td>{row.name}</td>
+                      <td>{row.category}</td>
+                      <td>{row.netPrice != null ? formatCurrency(row.netPrice) : "-"}</td>
+                      <td>{row.wholesalePrice != null ? formatCurrency(row.wholesalePrice) : "-"}</td>
+                      <td>{formatCurrency(row.retailPrice)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="button-row spacer-top">
+              <button
+                type="button"
+                className="button button--primary"
+                onClick={confirmImport}
+              >
+                Import
+              </button>
+              <button
+                type="button"
+                className="button button--ghost"
+                onClick={() => setImportPreview(null)}
+              >
+                Batal
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -3138,15 +3376,7 @@ function RefundsPage({
   const [search, setSearch] = useState("");
   const [reason, setReason] = useState("Keluhan pelanggan");
   const [quantities, setQuantities] = useState<Record<string, number>>({});
-  const [ownerId, setOwnerId] = useState("");
-
-  useEffect(() => {
-    if (session.role === "owner") {
-      setOwnerId("sumberkasih");
-    } else {
-      setOwnerId("");
-    }
-  }, [session.role]);
+  const ownerId = "sumberkasih";
   const [expandedSaleId, setExpandedSaleId] = useState<string | null>(null);
 
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -3334,7 +3564,6 @@ function RefundsPage({
                                   if (sale.refundable) {
                                     setQuantities({});
                                     setReason("Keluhan pelanggan");
-                                    setOwnerId("");
                                     setSelectedSaleId(sale.id);
                                   }
                                 }}
@@ -3454,27 +3683,11 @@ function RefundsPage({
                   onChange={(event) => setReason(event.target.value)}
                 />
               </label>
-              <label className="field-group">
-                <span className="field-label">Owner ID</span>
-                <input
-                  className="field"
-                  type="password"
-                  placeholder="Owner ID"
-                  value={ownerId}
-                  onChange={(event) => setOwnerId(event.target.value)}
-                  style={{
-                    borderColor:
-                      ownerId && ownerId !== "sumberkasih"
-                        ? "#dc2626"
-                        : undefined,
-                  }}
-                />
-              </label>
               <button
                 type="button"
-                className={`button button--primary${ownerId !== "sumberkasih" || !selectedSaleRefundable ? " button--disabled-orange" : ""}`}
+                className={`button button--primary${!selectedSaleRefundable ? " button--disabled-orange" : ""}`}
                 onClick={processRefund}
-                disabled={ownerId !== "sumberkasih" || !selectedSaleRefundable}
+                disabled={!selectedSaleRefundable}
               >
                 Proses Refund
               </button>
