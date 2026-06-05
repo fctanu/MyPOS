@@ -4634,7 +4634,7 @@ Jam tersibuk toko :
       ) : null}
       <section className="panel">
         <h2 className="card-title" style={{ fontSize: 28 }}>
-          Snapshot Laporan Tersimpan
+          Riwayat Laporan
         </h2>
         <div className="table-shell spacer-top">
           <table className="data-table">
