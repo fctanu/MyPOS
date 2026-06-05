@@ -387,6 +387,7 @@ img {
 .button--secondary {
   background: rgba(71, 85, 105, 0.1);
   color: var(--color-secondary);
+  border: 1px solid rgba(71, 85, 105, 0.18);
 }
 
 .button--ghost {
@@ -690,6 +691,7 @@ img {
   font-size: 14px;
   font-weight: 700;
   box-shadow: var(--shadow-soft);
+  border: 1px solid rgba(71, 85, 105, 0.12);
 }
 
 .layout-split {

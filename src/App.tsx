@@ -105,6 +105,23 @@ type RefundRecord = {
   createdAt: string;
 };
 
+type PurchaseItem = {
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitCost: number;
+  subtotal: number;
+};
+
+type PurchaseRecord = {
+  id: string;
+  supplierName: string;
+  items: PurchaseItem[];
+  totalCost: number;
+  createdAt: string;
+  notes?: string;
+};
+
 type ReportSnapshot = {
   id: string;
   createdAt: string;
@@ -112,6 +129,7 @@ type ReportSnapshot = {
   periodEnd: string;
   salesTotal: number;
   refundTotal: number;
+  purchaseTotal: number;
   topProduct: string;
 };
 
@@ -143,6 +161,12 @@ type AppContextValue = {
     updater:
       | ReportSnapshot[]
       | ((current: ReportSnapshot[]) => ReportSnapshot[]),
+  ) => void;
+  purchases: PurchaseRecord[];
+  setPurchases: (
+    updater:
+      | PurchaseRecord[]
+      | ((current: PurchaseRecord[]) => PurchaseRecord[]),
   ) => void;
   toasts: Toast[];
   addToast: (message: string, type?: Toast["type"]) => void;
@@ -393,6 +417,7 @@ const reportsSeed: ReportSnapshot[] = [
     periodEnd: "2026-03-31",
     salesTotal: 58190250,
     refundTotal: 2415400,
+    purchaseTotal: 42000000,
     topProduct: "SEDAAP MIE GR 91GR (40)",
   },
   {
@@ -402,6 +427,7 @@ const reportsSeed: ReportSnapshot[] = [
     periodEnd: "2026-02-29",
     salesTotal: 54882100,
     refundTotal: 1924600,
+    purchaseTotal: 38500000,
     topProduct: "INDOMILK KALENG PUTIH",
   },
 ];
@@ -885,6 +911,10 @@ function AppProvider({ children }: { children: ReactNode }) {
     return raw ? (JSON.parse(raw) as RefundRecord[]) : [];
   });
   const [reports, setReportsState] = useState<ReportSnapshot[]>(reportsSeed);
+  const [purchases, setPurchasesState] = useState<PurchaseRecord[]>(() => {
+    const raw = window.localStorage.getItem("mypos-purchases");
+    return raw ? (JSON.parse(raw) as PurchaseRecord[]) : [];
+  });
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   const addToast = useCallback(
@@ -913,6 +943,10 @@ function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     window.localStorage.setItem("mypos-refunds", JSON.stringify(refunds));
   }, [refunds]);
+
+  useEffect(() => {
+    window.localStorage.setItem("mypos-purchases", JSON.stringify(purchases));
+  }, [purchases]);
 
   const value: AppContextValue = {
     session,
@@ -959,6 +993,13 @@ function AppProvider({ children }: { children: ReactNode }) {
       setReportsState((current) =>
         typeof updater === "function"
           ? (updater as (value: ReportSnapshot[]) => ReportSnapshot[])(current)
+          : updater,
+      ),
+    purchases,
+    setPurchases: (updater) =>
+      setPurchasesState((current) =>
+        typeof updater === "function"
+          ? (updater as (value: PurchaseRecord[]) => PurchaseRecord[])(current)
           : updater,
       ),
     toasts,
@@ -2208,7 +2249,7 @@ function ProductsPage({
   tab: ProductTab;
   setTab: (tab: ProductTab) => void;
 }) {
-  const { session, categories, setCategories, products, setProducts, sales, addToast } = useAppModel();
+  const { session, categories, setCategories, products, setProducts, sales, purchases, setPurchases, addToast } = useAppModel();
   const [isDragActive, setIsDragActive] = useState(false);
   const [importPreview, setImportPreview] = useState<{
     rows: ImportRow[];
@@ -2254,6 +2295,12 @@ function ProductsPage({
   const [showDeleteAll, setShowDeleteAll] = useState(false);
   const [deleteAllConfirmText, setDeleteAllConfirmText] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [purchaseSupplier, setPurchaseSupplier] = useState<{ name: string } | null>(null);
+  const [purchaseLines, setPurchaseLines] = useState<{ productId: string; quantity: number; unitCost: number }[]>([]);
+  const [purchaseNotes, setPurchaseNotes] = useState("");
+  const [purchaseSearchText, setPurchaseSearchText] = useState<string[]>([]);
+  const [purchaseDropdownIdx, setPurchaseDropdownIdx] = useState<number | null>(null);
 
   async function showImportPreview(file: File) {
     try {
@@ -3195,6 +3242,7 @@ function ProductsPage({
                     <td>{supplier.address}</td>
                     <td>{supplier.phone}</td>
                     <td className="text-right">
+                      <div className="button-row" style={{ justifyContent: "flex-end" }}>
                       <button
                         type="button"
                         className="button"
@@ -3212,13 +3260,294 @@ function ProductsPage({
                       >
                         WhatsApp
                       </button>
+                      <button
+                        type="button"
+                        className="button button--primary"
+                        onClick={() => {
+                          setPurchaseSupplier(supplier);
+                          const firstProductId = products[0]?.id ?? "";
+                          setPurchaseLines([{ productId: firstProductId, quantity: 1, unitCost: 0 }]);
+                          setPurchaseNotes("");
+                          setPurchaseSearchText([products.find((p) => p.id === firstProductId)?.name ?? ""]);
+                          setShowPurchaseModal(true);
+                        }}
+                      >
+                        Catat Pembelian
+                      </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+
+          <section className="spacer-top">
+            <h2 className="card-title" style={{ fontSize: 30 }}>
+              Riwayat Pembelian
+            </h2>
+            <p className="section-subtitle">
+              Daftar pembelian barang ke supplier yang sudah dicatat.
+            </p>
+            {purchases.length ? (
+              <div className="table-shell spacer-top">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Tanggal</th>
+                      <th>Supplier</th>
+                      <th>Barang</th>
+                      <th style={{ textAlign: "right" }}>Total Biaya</th>
+                      <th>Catatan</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {purchases.map((entry) => (
+                      <tr key={entry.id}>
+                        <td>{formatShortDate(entry.createdAt)}</td>
+                        <td><strong>{entry.supplierName}</strong></td>
+                        <td>
+                          {entry.items.map((item, i) => (
+                            <div key={i} className="refund-item-line">
+                              <span className="refund-item-line__name">{item.productName}</span>
+                              <span className="refund-item-line__qty">×{item.quantity}</span>
+                              <span className="refund-item-line__price">{formatCurrency(item.subtotal)}</span>
+                            </div>
+                          ))}
+                        </td>
+                        <td style={{ textAlign: "right", fontFamily: "Consolas, SFMono-Regular, monospace", fontWeight: 600, color: "var(--color-warning)" }}>
+                          {formatCurrency(entry.totalCost)}
+                        </td>
+                        <td>{entry.notes ?? "-"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="empty-state spacer-top">
+                <h3 className="empty-state__title">Belum ada pembelian</h3>
+                <p className="empty-state__copy">
+                  Pembelian yang dicatat akan muncul di sini.
+                </p>
+              </div>
+            )}
+          </section>
         </section>
+      ) : null}
+
+      {showPurchaseModal && purchaseSupplier ? (
+        <div className="modal-overlay" onClick={() => setShowPurchaseModal(false)}>
+          <div className="modal-card" style={{ minWidth: 640, maxHeight: "85vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
+            <h2 className="card-title" style={{ fontSize: 24, marginBottom: 4 }}>
+              Catat Pembelian - {purchaseSupplier.name}
+            </h2>
+            <p className="section-subtitle" style={{ marginTop: 0 }}>
+              Pilih barang, masukkan jumlah dan harga beli.
+            </p>
+            <div className="form-stack spacer-top">
+              {purchaseLines.map((line, index) => (
+                <div key={index} style={{ display: "flex", gap: 8, alignItems: "flex-end", marginBottom: 8 }}>
+                  <div className="field-group" style={{ flex: 2, marginBottom: 0, position: "relative" }}>
+                    <span className="field-label">Barang</span>
+                    <input
+                      className="field"
+                      value={purchaseSearchText[index] ?? ""}
+                      placeholder="Ketik cari produk..."
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setPurchaseSearchText((prev) => prev.map((s, i) => (i === index ? val : s)));
+                        if (line.productId) {
+                          setPurchaseLines((prev) => prev.map((l, i) => (i === index ? { ...l, productId: "" } : l)));
+                        }
+                      }}
+                      onFocus={() => setPurchaseDropdownIdx(index)}
+                      onBlur={() => setTimeout(() => setPurchaseDropdownIdx(null), 180)}
+                    />
+                    {purchaseDropdownIdx === index ? (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "100%",
+                          left: 0,
+                          right: 0,
+                          background: "#fff",
+                          border: "1px solid rgba(71,85,105,0.2)",
+                          borderRadius: 12,
+                          boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                          maxHeight: 200,
+                          overflowY: "auto",
+                          zIndex: 50,
+                          marginTop: 4,
+                        }}
+                      >
+                        {products
+                          .filter(
+                            (p) =>
+                              !purchaseSearchText[index] ||
+                              p.name.toLowerCase().includes(purchaseSearchText[index].toLowerCase()),
+                          )
+                          .map((p) => (
+                            <div
+                              key={p.id}
+                              style={{
+                                padding: "10px 14px",
+                                cursor: "pointer",
+                                fontWeight: line.productId === p.id ? 700 : 400,
+                                background:
+                                  line.productId === p.id ? "var(--color-primary-soft)" : "transparent",
+                                borderBottom: "1px solid rgba(71,85,105,0.06)",
+                              }}
+                              onMouseDown={() => {
+                                setPurchaseLines((prev) => prev.map((l, i) => (i === index ? { ...l, productId: p.id } : l)));
+                                setPurchaseSearchText((prev) => prev.map((s, i) => (i === index ? p.name : s)));
+                                setPurchaseDropdownIdx(null);
+                              }}
+                            >
+                              {p.name}
+                            </div>
+                          ))}
+                      </div>
+                    ) : null}
+                  </div>
+                  <label className="field-group" style={{ flex: 1, marginBottom: 0 }}>
+                    <span className="field-label">Qty</span>
+                    <input
+                      className="field"
+                      type="number"
+                      min="1"
+                      value={line.quantity}
+                      onChange={(e) =>
+                        setPurchaseLines((prev) =>
+                          prev.map((l, i) =>
+                            i === index ? { ...l, quantity: Math.max(1, Number(e.target.value) || 1) } : l,
+                          ),
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="field-group" style={{ flex: 1, marginBottom: 0 }}>
+                    <span className="field-label">Harga Beli</span>
+                    <input
+                      className="field"
+                      type="number"
+                      min="0"
+                      value={line.unitCost}
+                      onChange={(e) =>
+                        setPurchaseLines((prev) =>
+                          prev.map((l, i) =>
+                            i === index ? { ...l, unitCost: Math.max(0, Number(e.target.value) || 0) } : l,
+                          ),
+                        )
+                      }
+                    />
+                  </label>
+                  {purchaseLines.length > 1 ? (
+                    <button
+                      type="button"
+                      className="button button--ghost"
+                      style={{ color: "#dc2626", marginBottom: 0, alignSelf: "flex-end" }}
+                      onClick={() => {
+                        setPurchaseLines((prev) => prev.filter((_, i) => i !== index));
+                        setPurchaseSearchText((prev) => prev.filter((_, i) => i !== index));
+                      }}
+                    >
+                      Hapus
+                    </button>
+                  ) : null}
+                </div>
+              ))}
+              <button
+                type="button"
+                className="button button--secondary"
+                onClick={() => {
+                  setPurchaseLines((prev) => [...prev, { productId: "", quantity: 1, unitCost: 0 }]);
+                  setPurchaseSearchText((prev) => [...prev, ""]);
+                }}
+              >
+                + Tambah Barang
+              </button>
+              <label className="field-group">
+                <span className="field-label">Catatan</span>
+                <textarea
+                  className="textarea-field"
+                  rows={2}
+                  value={purchaseNotes}
+                  onChange={(e) => setPurchaseNotes(e.target.value)}
+                  placeholder="Catatan pembelian (opsional)"
+                />
+              </label>
+              <article className="summary-box surface--accent">
+                <div className="stat-label">Total Biaya Pembelian</div>
+                <div className="summary-box__value" style={{ color: "var(--color-warning)" }}>
+                  {formatCurrency(
+                    purchaseLines.reduce(
+                      (total, line) => total + line.unitCost * line.quantity,
+                      0,
+                    ),
+                  )}
+                </div>
+              </article>
+              <div className="button-row">
+                <button
+                  type="button"
+                  className="button button--primary"
+                  disabled={!purchaseLines.some((l) => l.productId && l.quantity > 0 && l.unitCost > 0)}
+                  onClick={() => {
+                    const validLines = purchaseLines.filter((l) => l.productId && l.quantity > 0 && l.unitCost > 0);
+                    if (!validLines.length) return;
+
+                    const items: PurchaseItem[] = validLines.map((l) => {
+                      const product = products.find((p) => p.id === l.productId)!;
+                      return {
+                        productId: l.productId,
+                        productName: product.name,
+                        quantity: l.quantity,
+                        unitCost: l.unitCost,
+                        subtotal: l.unitCost * l.quantity,
+                      };
+                    });
+                    const totalCost = items.reduce((sum, item) => sum + item.subtotal, 0);
+
+                    const record: PurchaseRecord = {
+                      id: makeId("pch"),
+                      supplierName: purchaseSupplier.name,
+                      items,
+                      totalCost,
+                      createdAt: new Date().toISOString(),
+                      notes: purchaseNotes.trim() || undefined,
+                    };
+
+                    setPurchases((current) => [record, ...current]);
+                    setProducts((current) =>
+                      current.map((product) => {
+                        const line = validLines.find((l) => l.productId === product.id);
+                        return line
+                          ? { ...product, stock: product.stock + line.quantity }
+                          : product;
+                      }),
+                    );
+                    setShowPurchaseModal(false);
+                    setPurchaseSupplier(null);
+                    addToast(`Pembelian dicatat: ${totalCost > 0 ? formatCurrency(totalCost) : "0"} - ${purchaseSupplier.name}`);
+                  }}
+                >
+                  Simpan
+                </button>
+                <button
+                  type="button"
+                  className="button button--ghost"
+                  onClick={() => {
+                    setShowPurchaseModal(false);
+                    setPurchaseSupplier(null);
+                  }}
+                >
+                  Batal
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       ) : null}
 
       {showAddSupplier ? (
@@ -3872,7 +4201,7 @@ function ReportsPage({
   generated: boolean;
   setGenerated: (value: boolean) => void;
 }) {
-  const { sales, refunds, products, reports, setReports } = useAppModel();
+  const { sales, refunds, products, reports, setReports, purchases } = useAppModel();
   const availableMonths = [...new Set(sales.map((s) => s.createdAt.slice(0, 7)))].sort();
   const [selectedMonth, setSelectedMonth] = useState(availableMonths[availableMonths.length - 1] || "2026-01");
   const periodStart = selectedMonth + "-01";
@@ -3902,6 +4231,7 @@ function ReportsPage({
   const [snapshot, setSnapshot] = useState<{
     salesTotal: number;
     refundTotal: number;
+    purchaseTotal: number;
     totalTransaksi: number;
     stockMovement: number;
     netRevenue: number;
@@ -3930,6 +4260,9 @@ function ReportsPage({
     (total, refund) => total + refund.total,
     0,
   );
+  const purchaseTotal = purchases
+    .filter((p) => p.createdAt >= periodStart && p.createdAt <= periodEnd + "T23:59:59")
+    .reduce((total, p) => total + p.totalCost, 0);
   const netRevenue = Math.max(salesTotal - refundTotal, 0);
   const averageTransactionValue = currentSalesAI.length
     ? Math.round(salesTotal / currentSalesAI.length)
@@ -4039,6 +4372,7 @@ function ReportsPage({
     setReportProgress(0);
     const snapSalesTotal = salesTotal;
     const snapRefundTotal = refundTotal;
+    const snapPurchaseTotal = purchaseTotal;
     const snapNetRevenue = netRevenue;
     const snapAvgTransaksi = averageTransactionValue;
     const snapEstimatedGrossProfit = estimatedGrossProfit;
@@ -4059,6 +4393,7 @@ function ReportsPage({
           setSnapshot({
             salesTotal: snapSalesTotal,
             refundTotal: snapRefundTotal,
+            purchaseTotal: snapPurchaseTotal,
             totalTransaksi: snapTotalTransaksi,
             stockMovement: snapStockMovement,
             netRevenue: snapNetRevenue,
@@ -4081,6 +4416,7 @@ function ReportsPage({
               periodEnd,
               salesTotal: snapSalesTotal,
               refundTotal: snapRefundTotal,
+              purchaseTotal: snapPurchaseTotal,
               topProduct: snapTopProduct,
             },
             ...current,
@@ -4180,7 +4516,8 @@ Jam tersibuk toko :
             <span className="field-label">&nbsp;</span>
             <button
               type="button"
-              className="button button--forecast button--full"
+              className="button button--full"
+              style={{ background: "#f59e0b", color: "#fff", border: "none" }}
               onClick={() => {
                 if (isAiAnalysisRunning) return;
                 setIsAiAnalysisRunning(true);
@@ -4245,8 +4582,10 @@ Jam tersibuk toko :
           <div className="stat-value">{snapshot.totalTransaksi}</div>
         </article>
         <article className="stat-card surface">
-          <div className="stat-label">Pergerakan Stok</div>
-          <div className="stat-value">{snapshot.stockMovement}</div>
+          <div className="stat-label">Total Biaya Pembelian</div>
+          <div className="stat-value" style={{ color: "var(--color-warning)" }}>
+            {formatCurrency(snapshot.purchaseTotal)}
+          </div>
         </article>
       </section>
       <section className="stat-grid stat-grid--three">
@@ -4300,27 +4639,25 @@ Jam tersibuk toko :
         <div className="table-shell spacer-top">
           <table className="data-table">
             <thead>
-              <tr>
-                <th>ID</th>
-                <th>Dibuat</th>
-                <th>Mulai</th>
-                <th>Selesai</th>
-                <th>Penjualan</th>
-                <th>Refund</th>
-                <th>Produk Terlaris</th>
-              </tr>
+                <tr>
+                  <th>ID</th>
+                  <th>Dibuat</th>
+                  <th>Bulan Periode</th>
+                  <th>Total Penjualan</th>
+                  <th>Total Biaya Pembelian</th>
+                  <th>Total Laba Bersih</th>
+                </tr>
             </thead>
             <tbody>
               {reports.map((report) => (
-                <tr key={report.id}>
-                  <td>{report.id}</td>
-                  <td>{formatShortDate(report.createdAt)}</td>
-                  <td>{report.periodStart}</td>
-                  <td>{report.periodEnd}</td>
-                  <td>{formatCurrency(report.salesTotal)}</td>
-                  <td>{formatCurrency(report.refundTotal)}</td>
-                  <td>{report.topProduct}</td>
-                </tr>
+                  <tr key={report.id}>
+                    <td>{report.id}</td>
+                    <td>{formatShortDate(report.createdAt)}</td>
+                    <td>{report.periodStart} s/d {report.periodEnd}</td>
+                    <td>{formatCurrency(report.salesTotal)}</td>
+                    <td>{formatCurrency(report.purchaseTotal)}</td>
+                    <td style={{ fontWeight: 600, color: "var(--color-success)" }}>{formatCurrency(report.salesTotal - report.purchaseTotal)}</td>
+                  </tr>
               ))}
             </tbody>
           </table>
@@ -4440,7 +4777,7 @@ Jam tersibuk toko :
             value={aiApiKey}
             onChange={(event) => setAiApiKey(event.target.value)}
             placeholder="nvapi-..."
-            style={{ color: "transparent", caretColor: "var(--color-body)" }}
+            style={{ caretColor: "var(--color-body)" }}
           />
         </label>
       </div>
