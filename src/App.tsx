@@ -2288,6 +2288,16 @@ function ProductsPage({
     address: string;
     phone: string;
   } | null>(null);
+  const [showEditSupplier, setShowEditSupplier] = useState(false);
+  const [editSupplierTarget, setEditSupplierTarget] = useState<{
+    name: string;
+    address: string;
+    phone: string;
+  } | null>(null);
+  const [editSupplierName, setEditSupplierName] = useState("");
+  const [editSupplierAddress, setEditSupplierAddress] = useState("");
+  const [editSupplierPhone, setEditSupplierPhone] = useState("");
+  const [isEditingSuppliers, setIsEditingSuppliers] = useState(false);
   const [whatsappMessage, setWhatsappMessage] = useState("");
   const [newProductName, setNewProductName] = useState("");
   const [newProductCategoryId, setNewProductCategoryId] = useState("");
@@ -2465,6 +2475,29 @@ function ProductsPage({
     setNewSupplierName("");
     setNewSupplierAddress("");
     setNewSupplierPhone("");
+  }
+
+  function editSupplier() {
+    if (!editSupplierTarget || !editSupplierName.trim() || !editSupplierPhone.trim()) return;
+    setSuppliers((current) =>
+      current.map((s) =>
+        s.phone === editSupplierTarget.phone && s.name === editSupplierTarget.name
+          ? {
+              name: editSupplierName.trim().toUpperCase(),
+              address: editSupplierAddress.trim(),
+              phone: editSupplierPhone.trim(),
+            }
+          : s
+      )
+    );
+    setShowEditSupplier(false);
+    setEditSupplierTarget(null);
+  }
+
+  function updateSupplier(phone: string, updates: { name?: string; address?: string; phone?: string }) {
+    setSuppliers((current) =>
+      current.map((s) => (s.phone === phone ? { ...s, ...updates } : s))
+    );
   }
 
   function deleteAllProducts() {
@@ -3212,18 +3245,29 @@ function ProductsPage({
               <h1 className="page-heading">Daftar Supplier</h1>
               <p className="section-subtitle">Kelola data supplier dan hubungi via WhatsApp.</p>
             </div>
-            <button
-              type="button"
-              className="button button--primary"
-              onClick={() => {
-                setShowAddSupplier(true);
-                setNewSupplierName("");
-                setNewSupplierAddress("");
-                setNewSupplierPhone("");
-              }}
-            >
-              Tambah Supplier
-            </button>
+            <div className="button-row">
+              <button
+                type="button"
+                className={`button ${
+                  isEditingSuppliers ? "button--primary" : "button--secondary"
+                }`}
+                onClick={() => setIsEditingSuppliers((current) => !current)}
+              >
+                {isEditingSuppliers ? "Selesai" : "Edit"}
+              </button>
+              <button
+                type="button"
+                className="button button--primary"
+                onClick={() => {
+                  setShowAddSupplier(true);
+                  setNewSupplierName("");
+                  setNewSupplierAddress("");
+                  setNewSupplierPhone("");
+                }}
+              >
+                Tambah Supplier
+              </button>
+            </div>
           </div>
           <div className="table-shell spacer-top">
             <table className="data-table">
@@ -3238,43 +3282,94 @@ function ProductsPage({
               <tbody>
                 {suppliers.map((supplier) => (
                   <tr key={supplier.phone}>
-                    <td><strong>{supplier.name}</strong></td>
-                    <td>{supplier.address}</td>
-                    <td>{supplier.phone}</td>
+                    <td>
+                      {isEditingSuppliers ? (
+                        <input
+                          className="product-edit-field product-edit-field--name"
+                          value={supplier.name}
+                          onChange={(event) =>
+                            updateSupplier(supplier.phone, { name: event.target.value })
+                          }
+                        />
+                      ) : (
+                        <strong>{supplier.name}</strong>
+                      )}
+                    </td>
+                    <td>
+                      {isEditingSuppliers ? (
+                        <input
+                          className="product-edit-field"
+                          value={supplier.address}
+                          onChange={(event) =>
+                            updateSupplier(supplier.phone, { address: event.target.value })
+                          }
+                        />
+                      ) : (
+                        supplier.address
+                      )}
+                    </td>
+                    <td>
+                      {isEditingSuppliers ? (
+                        <input
+                          className="product-edit-field"
+                          value={supplier.phone}
+                          onChange={(event) =>
+                            updateSupplier(supplier.phone, { phone: event.target.value })
+                          }
+                        />
+                      ) : (
+                        supplier.phone
+                      )}
+                    </td>
                     <td className="text-right">
-                      <div className="button-row" style={{ justifyContent: "flex-end" }}>
-                      <button
-                        type="button"
-                        className="button"
-                        style={{
-                          background: "#25D366",
-                          color: "#fff",
-                          border: "none",
-                        }}
-                        onClick={() => {
-                          setSelectedSupplier(supplier);
-                          setWhatsappMessage(
-                            `Halo ${supplier.name}, aku mau Restock untuk barang :\nNama Produk :\nQuantitas :\n\napakah bisa?`,
-                          );
-                        }}
-                      >
-                        WhatsApp
-                      </button>
-                      <button
-                        type="button"
-                        className="button button--primary"
-                        onClick={() => {
-                          setPurchaseSupplier(supplier);
-                          const firstProductId = products[0]?.id ?? "";
-                          setPurchaseLines([{ productId: firstProductId, quantity: 1, unitCost: 0 }]);
-                          setPurchaseNotes("");
-                          setPurchaseSearchText([products.find((p) => p.id === firstProductId)?.name ?? ""]);
-                          setShowPurchaseModal(true);
-                        }}
-                      >
-                        Catat Pembelian
-                      </button>
-                      </div>
+                      {isEditingSuppliers ? (
+                        <button
+                          type="button"
+                          className="button button--ghost"
+                          style={{ color: "#dc2626" }}
+                          onClick={() =>
+                            setSuppliers((current) =>
+                              current.filter((s) => s.phone !== supplier.phone)
+                            )
+                          }
+                        >
+                          Hapus
+                        </button>
+                      ) : (
+                        <div className="button-row" style={{ justifyContent: "flex-end" }}>
+                        <button
+                          type="button"
+                          className="button"
+                          style={{
+                            background: "#25D366",
+                            color: "#fff",
+                            border: "none",
+                          }}
+                          onClick={() => {
+                            setSelectedSupplier(supplier);
+                            setWhatsappMessage(
+                              `Halo ${supplier.name}, aku mau Restock untuk barang :\nNama Produk :\nQuantitas :\n\napakah bisa?`,
+                            );
+                          }}
+                        >
+                          WhatsApp
+                        </button>
+                        <button
+                          type="button"
+                          className="button button--primary"
+                          onClick={() => {
+                            setPurchaseSupplier(supplier);
+                            const firstProductId = products[0]?.id ?? "";
+                            setPurchaseLines([{ productId: firstProductId, quantity: 1, unitCost: 0 }]);
+                            setPurchaseNotes("");
+                            setPurchaseSearchText([products.find((p) => p.id === firstProductId)?.name ?? ""]);
+                            setShowPurchaseModal(true);
+                          }}
+                        >
+                          Catat Pembelian
+                        </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -3596,6 +3691,61 @@ function ProductsPage({
                   type="button"
                   className="button button--ghost"
                   onClick={() => setShowAddSupplier(false)}
+                >
+                  Batal
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showEditSupplier && editSupplierTarget ? (
+        <div className="modal-overlay" onClick={() => { setShowEditSupplier(false); setEditSupplierTarget(null); }}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <h2 className="card-title" style={{ fontSize: 24 }}>
+              Edit Supplier
+            </h2>
+            <div className="form-stack spacer-top">
+              <label className="field-group">
+                <span className="field-label">Nama Supplier</span>
+                <input
+                  className="field"
+                  value={editSupplierName}
+                  onChange={(event) => setEditSupplierName(event.target.value)}
+                />
+              </label>
+              <label className="field-group">
+                <span className="field-label">Alamat</span>
+                <textarea
+                  className="textarea-field"
+                  value={editSupplierAddress}
+                  onChange={(event) => setEditSupplierAddress(event.target.value)}
+                />
+              </label>
+              <label className="field-group">
+                <span className="field-label">Nomor Telepon</span>
+                <input
+                  className="field"
+                  type="tel"
+                  placeholder="62812-xxxx-xxxx"
+                  value={editSupplierPhone}
+                  onChange={(event) => setEditSupplierPhone(event.target.value)}
+                />
+              </label>
+              <div className="button-row">
+                <button
+                  type="button"
+                  className="button button--primary"
+                  disabled={!editSupplierName.trim() || !editSupplierPhone.trim()}
+                  onClick={editSupplier}
+                >
+                  Simpan
+                </button>
+                <button
+                  type="button"
+                  className="button button--ghost"
+                  onClick={() => { setShowEditSupplier(false); setEditSupplierTarget(null); }}
                 >
                   Batal
                 </button>
